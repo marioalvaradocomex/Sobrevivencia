@@ -1,0 +1,297 @@
+---
+title: "Tarea 1"
+author: "Mario Alvarado"
+output: 
+  html_document: 
+    df_print: paged
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Carga de datos
+
+```{r}
+library(haven)
+library(dplyr)
+library(survival)
+library(survminer)
+
+# setwd("C:/Users/Mario.alvarado/OneDrive - Ministerio de Comercio Exterior/Aprendizaje/Estadistica/2.3 Analisis de Sobrevivencia/Tarea 1")
+
+datos <- read_dta("encfec2010.dta") %>%
+  filter(region == 8)
+
+View(datos)
+
+summary(datos)
+table(datos$region)
+```
+
+
+## Ejercicio 1
+
+```{r}
+datos <- datos %>%
+  mutate(
+    r201b = na_if(r201b, 99),
+    r201c = na_if(r201c, 9999),
+    r216m = na_if(na_if(r216m, 98), 99),
+    r216a = na_if(na_if(r216a, 9998), 9999),
+    evento = case_when(
+      r215 == 1 ~ 0,
+      r215 %in% c(2, 3) ~ 1,
+      TRUE ~ NA_real_
+    ),
+    tiempo_union = case_when(
+      evento == 0 ~ as.numeric(r202),
+      evento == 1 ~ ((r216a - r201c) * 12 + (r216m - r201b)) / 12,
+      TRUE ~ NA_real_
+    )
+  )
+
+summary(datos$r201b)
+summary(datos$r216m)
+table(datos$r215, datos$evento, useNA = "ifany")
+summary(datos$tiempo_union)
+
+```
+
+## Ejercicio 2
+
+```{r}
+so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
+fit1=survfit(so.1~1)
+
+
+summary(fit1)$table
+ggsurvplot(fit1, data=datos)
+```
+**La mediana es de 24.24**
+
+**La proporción de personas que nunca se unen es de 10.2%**
+
+## Ejercicio 3
+
+```{r}
+summary(fit1)
+```
+
+
+**a. La edad media de la primera unión es de 24.24**
+
+**b. Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 19.83 años**
+
+**c.	Cree una curva de hazards**
+
+```{r}
+tabla_hazard <- data.frame(
+  Tiempo = fit1$time,
+  Sobrevivientes = fit1$n.risk,
+  Eventos = fit1$n.event
+) %>%
+  mutate(
+    delta_t = Tiempo - lag(Tiempo),
+    ht = (Eventos / Sobrevivientes) / delta_t
+  ) %>%
+  filter(is.finite(ht))
+
+suavizam <- loess(ht ~ Tiempo, data = tabla_hazard)
+suav <- predict(suavizam)
+
+plot(
+  suav ~ tabla_hazard$Tiempo,
+  type = "l",
+)
+
+```
+
+
+## Ejercicio 4
+
+
+```{r}
+
+datos <- datos %>%
+  mutate(
+    ednivel_cat = case_when(
+      ednivel <= 10  ~ "Primaria o menos",
+      ednivel <= 30 ~ "Secundaria",
+      ednivel <= 50 ~ "Postsecundaria",
+      TRUE ~ NA_character_
+    )
+  )
+
+```
+
+## Ejercicio 5
+
+
+```{r}
+
+datos <- datos %>%
+  mutate(
+    religion_cat = case_when(
+      r209 == 1  ~ "Católica",
+      r209 %in% c(2, 3, 4, 5, 7) ~ "Otra religión",
+      r209 == 8 ~ "No creyente",
+      TRUE ~ NA_character_
+    ),
+    sexo_cat = factor(
+      r204,
+      levels = c(1, 2),
+      labels = c("Hombre", "Mujer") 
+    ),
+    zona_cat = case_when(
+      zona == 1 ~ "Urbana",
+      zona == 2 ~ "Rural",
+      TRUE ~ NA_character_
+    )
+  )
+
+```
+
+## Ejercicio 6
+
+```{r}
+
+
+
+fit.sexo=survfit(so.1~as.factor(sexo_cat),data=datos)
+fit.educacion=survfit(so.1~as.factor(ednivel_cat),data=datos)
+fit.religion=survfit(so.1~as.factor(religion_cat),data=datos)
+fit.zona=survfit(so.1~as.factor(zona_cat),data=datos)
+
+```
+
+
+```{r}
+graf.sexo <- ggsurvplot(
+  fit.sexo, data = datos, pval = TRUE,
+  title = "Sexo", xlab = "Edad",
+  ylab = "Probabilidad de permanecer sin unión"
+)
+
+graf.educacion <- ggsurvplot(
+  fit.educacion, data = datos, pval = TRUE,
+  title = "Educación", xlab = "Edad",
+  ylab = "Probabilidad de permanecer sin unión"
+)
+
+graf.religion <- ggsurvplot(
+  fit.religion, data = datos, pval = TRUE,
+  title = "Religión", xlab = "Edad",
+  ylab = "Probabilidad de permanecer sin unión"
+)
+
+graf.zona <- ggsurvplot(
+  fit.zona, data = datos, pval = TRUE,
+  title = "Zona", xlab = "Edad",
+  ylab = "Probabilidad de permanecer sin unión"
+)
+
+arrange_ggsurvplots(
+  list(
+    graf.sexo,
+    graf.educacion,
+    graf.religion,
+    graf.zona
+  ),
+  ncol = 2,
+  nrow = 2,
+  print = TRUE
+)
+
+```
+
+
+## Ejercicio 7
+
+La función correcta es `survdiff()`, con dos letras `f`. Para todas las pruebas se utiliza un nivel de significancia de $\alpha=0.05$.
+
+### Sexo
+
+```{r}
+prueba.sexo <- survdiff(so.1 ~ sexo_cat, data = datos)
+prueba.sexo$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Hombre}(t)=S_{Mujer}(t) \Rightarrow h_{Hombre}(t)=h_{Mujer}(t)$.
+
+**Hipótesis alternativa:** $H_1: S_{Hombre}(t)\neq S_{Mujer}(t) \Rightarrow h_{Hombre}(t)\neq h_{Mujer}(t)$.
+
+**Interpretación:** Como el p-value es 0.0084, menor que 0.05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de que las curvas de supervivencia de la edad a la primera unión son diferentes entre hombres y mujeres.
+
+### Educación
+
+```{r}
+prueba.educacion <- survdiff(so.1 ~ ednivel_cat, data = datos)
+prueba.educacion$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Primaria}(t)=S_{Secundaria}(t)=S_{Postsecundaria}(t) \Rightarrow h_{Primaria}(t)=h_{Secundaria}(t)=h_{Postsecundaria}(t)$.
+
+**Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
+
+**Interpretación:** Como el p-value es 0.6947, mayor que 0.05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas según el nivel educativo.
+
+### Religión
+
+```{r}
+prueba.religion <- survdiff(so.1 ~ religion_cat, data = datos)
+prueba.religion$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Católica}(t)=S_{Otra}(t)=S_{NoCreyente}(t) \Rightarrow h_{Católica}(t)=h_{Otra}(t)=h_{NoCreyente}(t)$.
+
+**Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
+
+**Interpretación:** Como el p-value es 0.4136, mayor que 0.05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas según la religión.
+
+### Zona
+
+```{r}
+prueba.zona <- survdiff(so.1 ~ zona_cat, data = datos)
+prueba.zona$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Urbana}(t)=S_{Rural}(t) \Rightarrow h_{Urbana}(t)=h_{Rural}(t)$.
+
+**Hipótesis alternativa:** $H_1: S_{Urbana}(t)\neq S_{Rural}(t) \Rightarrow h_{Urbana}(t)\neq h_{Rural}(t)$.
+
+**Interpretación:** Como el p-value es 0.5757, mayor que 0.05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas de las zonas urbana y rural.
+
+
+## Ejercicio 8
+
+En `survdiff()`, `rho = 0` corresponde a la prueba log-rank y `rho = 1` corresponde a la prueba Peto-Peto.
+
+```{r}
+survdiff(
+  so.1 ~ sexo_cat,
+  data = datos,
+  rho = 1
+)$pvalue
+```
+
+**Interpretación:** La prueba log-rank produce un p-value de 0.0084 y la prueba Peto-Peto un p-value de 0.0004. Ambos valores son menores que 0.05, por lo que con ambas pruebas se rechaza la hipótesis nula de igualdad entre las curvas de supervivencia de hombres y mujeres. Por tanto, la prueba Peto-Peto conduce a la misma conclusión que la prueba log-rank: existen diferencias estadísticamente significativas por sexo en la edad a la primera unión conyugal.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
