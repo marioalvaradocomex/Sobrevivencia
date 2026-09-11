@@ -1,12 +1,46 @@
 ---
 title: "Tarea 1"
-authors: "Mario Alvarado"
-output: 
-  html_document: 
-    df_print: paged
+subtitle: "SP-1637 Análisis de sobrevivencia — IIC-2026"
+author: 
+    - 'Gustavo Murillo'
+    - 'Mario Alvarado'
+date: today
+date-format: long 
+format:
+  pdf:
+   documentclass: article
+   papersize: letter
+   classoption: [fleqn]
+   geometry:
+     - top=2.5cm
+     - bottom=2.5cm
+     - left=2.5cm
+     - right=2.5cm
+   toc: true
+   toc-depth: 3
+   toc-title: "Contenidos"
+   number-sections: true
+   colorlinks: true
+   linkcolor: RoyalBlue
+   urlcolor: RoyalBlue
+   highlight-style: github
+   code-block-bg: "#f7f7f7"
+   code-block-border-left: "#cccccc"
+   code-overflow: wrap
+   fig-pos: "H"
+   fig-align: center
+   include-in-header:
+     text: |
+       \setlength{\mathindent}{0pt}
+execute: 
+  eval: false
+  message: false
+  warning: false
+lang: es
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
