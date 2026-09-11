@@ -1,6 +1,6 @@
 ---
 title: "Tarea 1"
-subtitle: "SP-1637 Análisis de sobrevivencia — IIC-2026"
+subtitle: "SP-1637 Análisis de Sobrevivencia — IIC-2026"
 author: 
     - 'Gustavo Murillo'
     - 'Mario Alvarado'
@@ -49,14 +49,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Carga de datos
 
 ```{r}
-library(haven)
-library(dplyr)
-library(survival)
-library(survminer)
+pacman::p_load(haven, dplyr, survival, survminer)
 
-# setwd("C:/Users/Mario.alvarado/OneDrive - Ministerio de Comercio Exterior/Aprendizaje/Estadistica/2.3 Analisis de Sobrevivencia/Tarea 1")
+datos <- read_dta("encfec2010.dta")
 
-datos <- read_dta("encfec2010.dta") %>%
+datos_r8 <- datos |>
   filter(region == 8)
 
 View(datos)
@@ -69,7 +66,7 @@ table(datos$region)
 ## Ejercicio 1
 
 ```{r}
-datos <- datos %>%
+datos_r8 <- datos_r8 |>
   mutate(
     r201b = na_if(r201b, 99),
     r201c = na_if(r201c, 9999),
@@ -78,34 +75,34 @@ datos <- datos %>%
     evento = case_when(
       r215 == 1 ~ 0,
       r215 %in% c(2, 3) ~ 1,
-      TRUE ~ NA_real_
+      .default = NA_real_
     ),
     tiempo_union = case_when(
       evento == 0 ~ as.numeric(r202),
       evento == 1 ~ ((r216a - r201c) * 12 + (r216m - r201b)) / 12,
-      TRUE ~ NA_real_
+      .default = NA_real_
     )
   )
 
-summary(datos$r201b)
-summary(datos$r216m)
-table(datos$r215, datos$evento, useNA = "ifany")
-summary(datos$tiempo_union)
+summary(datos_r8$r201b)
+summary(datos_r8$r216m)
+table(datos_r8$r215, datos_r8$evento, useNA = "ifany")
+summary(datos_r8$tiempo_union)
 ```
 
 ## Ejercicio 2
 
 ```{r}
-so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
+so.1 <- Surv(time = datos_r8$tiempo_union, event = datos_r8$evento)
 fit1 <- survfit(so.1 ~ 1)
 
 
 summary(fit1)$table
-ggsurvplot(fit1, data = datos)
+ggsurvplot(fit1, data = datos_r8)
 ```
-**La mediana es de 24.24**
+**La edad mediana a la primera unión es de aproximadamente 25**
 
-**La proporción de personas que nunca se unen es de 10.2%**
+**La proporción de personas que nunca se unen es de aproximadamente 0,125 o un 12,5 % de las personas que nunca se unen**
 
 ## Ejercicio 3
 
@@ -125,11 +122,11 @@ tabla_hazard <- data.frame(
   Tiempo = fit1$time,
   Sobrevivientes = fit1$n.risk,
   Eventos = fit1$n.event
-) %>%
+) |>
   mutate(
     delta_t = Tiempo - lag(Tiempo),
     ht = (Eventos / Sobrevivientes) / delta_t
-  ) %>%
+  ) |>
   filter(is.finite(ht))
 
 suavizam <- loess(ht ~ Tiempo, data = tabla_hazard)
@@ -147,7 +144,7 @@ plot(
 
 ```{r}
 
-datos <- datos %>%
+datos_r8 <- datos_r8 |>
   mutate(
     ednivel_cat = case_when(
       ednivel <= 10 ~ "Primaria o menos",
@@ -163,7 +160,7 @@ datos <- datos %>%
 
 ```{r}
 
-datos <- datos %>%
+datos_r8 <- datos_r8 |>
   mutate(
     religion_cat = case_when(
       r209 == 1 ~ "Católica",
@@ -188,17 +185,17 @@ datos <- datos %>%
 
 ```{r}
 
-fit.sexo <- survfit(so.1 ~ as.factor(sexo_cat), data = datos)
-fit.educacion <- survfit(so.1 ~ as.factor(ednivel_cat), data = datos)
-fit.religion <- survfit(so.1 ~ as.factor(religion_cat), data = datos)
-fit.zona <- survfit(so.1 ~ as.factor(zona_cat), data = datos)
+fit.sexo <- survfit(so.1 ~ as.factor(sexo_cat), data = datos_r8)
+fit.educacion <- survfit(so.1 ~ as.factor(ednivel_cat), data = datos_r8)
+fit.religion <- survfit(so.1 ~ as.factor(religion_cat), data = datos_r8)
+fit.zona <- survfit(so.1 ~ as.factor(zona_cat), data = datos_r8)
 ```
 
 
 ```{r}
 graf.sexo <- ggsurvplot(
   fit.sexo,
-  data = datos,
+  data = datos_r8,
   pval = TRUE,
   title = "Sexo",
   xlab = "Edad",
@@ -207,7 +204,7 @@ graf.sexo <- ggsurvplot(
 
 graf.educacion <- ggsurvplot(
   fit.educacion,
-  data = datos,
+  data = datos_r8,
   pval = TRUE,
   title = "Educación",
   xlab = "Edad",
@@ -216,7 +213,7 @@ graf.educacion <- ggsurvplot(
 
 graf.religion <- ggsurvplot(
   fit.religion,
-  data = datos,
+  data = datos_r8,
   pval = TRUE,
   title = "Religión",
   xlab = "Edad",
@@ -225,7 +222,7 @@ graf.religion <- ggsurvplot(
 
 graf.zona <- ggsurvplot(
   fit.zona,
-  data = datos,
+  data = datos_r8,
   pval = TRUE,
   title = "Zona",
   xlab = "Edad",
@@ -253,7 +250,7 @@ La función correcta es `survdiff()`, con dos letras `f`. Para todas las pruebas
 ### Sexo
 
 ```{r}
-prueba.sexo <- survdiff(so.1 ~ sexo_cat, data = datos)
+prueba.sexo <- survdiff(so.1 ~ sexo_cat, data = datos_r8)
 prueba.sexo$pvalue
 ```
 
@@ -266,7 +263,7 @@ prueba.sexo$pvalue
 ### Educación
 
 ```{r}
-prueba.educacion <- survdiff(so.1 ~ ednivel_cat, data = datos)
+prueba.educacion <- survdiff(so.1 ~ ednivel_cat, data = datos_r8)
 prueba.educacion$pvalue
 ```
 
@@ -279,7 +276,7 @@ prueba.educacion$pvalue
 ### Religión
 
 ```{r}
-prueba.religion <- survdiff(so.1 ~ religion_cat, data = datos)
+prueba.religion <- survdiff(so.1 ~ religion_cat, data = datos_r8)
 prueba.religion$pvalue
 ```
 
@@ -292,7 +289,7 @@ prueba.religion$pvalue
 ### Zona
 
 ```{r}
-prueba.zona <- survdiff(so.1 ~ zona_cat, data = datos)
+prueba.zona <- survdiff(so.1 ~ zona_cat, data = datos_r8)
 prueba.zona$pvalue
 ```
 
@@ -310,7 +307,7 @@ En `survdiff()`, `rho = 0` corresponde a la prueba log-rank y `rho = 1` correspo
 ```{r}
 survdiff(
   so.1 ~ sexo_cat,
-  data = datos,
+  data = datos_r8,
   rho = 1
 )$pvalue
 ```
