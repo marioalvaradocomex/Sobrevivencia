@@ -51,13 +51,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 pacman::p_load(haven, dplyr, survival, survminer)
 
-datos <- read_dta("encfec2010.dta")
-
-datos_r8 <- datos |>
-  filter(region == 8)
-
-datos_r1 <- datos |>
-  filter(region == 1)
+datos <- read_dta("encfec2010.dta") |>
+  filter(region == 1 | region == 8)
 
 summary(datos)
 table(datos$region)
@@ -66,96 +61,78 @@ table(datos$region)
 
 ## Ejercicio 1
 
-### Región Pacífico Central
 ```{r}
-datos_r8 <- datos_r8 |>
+datos <- datos |>
   mutate(
-    r201b = na_if(r201b, 99),
-    r201c = na_if(r201c, 9999),
-    r216m = na_if(na_if(r216m, 98), 99),
-    r216a = na_if(na_if(r216a, 9998), 9999),
+    r201b = as.numeric(na_if(r201b, 99)),
+    r201c = as.numeric(na_if(r201c, 9999)),
+    r216m = if_else(r216m %in% c(98, 99), NA, as.numeric(r216m)),
+    r216a = if_else(r216a %in% c(9998, 9999), NA, as.numeric(r216a)),
     evento = case_when(
       r215 == 1 ~ 0,
-      r215 %in% c(2, 3) ~ 1,
-      .default = NA_real_
+      r215 %in% c(2, 3) ~ 1
     ),
     tiempo_union = case_when(
       evento == 0 ~ as.numeric(r202),
-      evento == 1 ~ ((r216a - r201c) * 12 + (r216m - r201b)) / 12,
-      .default = NA_real_
+      evento == 1 ~ ((r216a - r201c) * 12 + (r216m - r201b)) / 12
     )
   )
 
-summary(datos_r8$r201b)
-summary(datos_r8$r216m)
-table(datos_r8$r215, datos_r8$evento, useNA = "ifany")
-summary(datos_r8$tiempo_union)
-```
-
-### Región Metropolitana
-
-```{r}
-datos_r1 <- datos_r1 |>
-  mutate(
-    r201b = na_if(r201b, 99),
-    r201c = na_if(r201c, 9999),
-    r216m = na_if(na_if(r216m, 98), 99),
-    r216a = na_if(na_if(r216a, 9998), 9999),
-    evento = case_when(
-      r215 == 1 ~ 0,
-      r215 %in% c(2, 3) ~ 1,
-      .default = NA_real_
-    ),
-    tiempo_union = case_when(
-      evento == 0 ~ as.numeric(r202),
-      evento == 1 ~ ((r216a - r201c) * 12 + (r216m - r201b)) / 12,
-      .default = NA_real_
-    )
-  )
-
-summary(datos_r1$r201b)
-summary(datos_r1$r216m)
-table(datos_r1$r215, datos_r1$evento, useNA = "ifany")
-summary(datos_r1$tiempo_union)
+summary(datos$r201b)
+summary(datos$r216m)
+table(datos$r215, datos$evento, useNA = "ifany")
+summary(datos$tiempo_union)
 ```
 
 
 ## Ejercicio 2
 
-### Región PC
+### Metropolitana y Pacífico Central
 ```{r}
-so.1 <- Surv(time = datos_r8$tiempo_union, event = datos_r8$evento)
+so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
 fit1 <- survfit(so.1 ~ 1)
-
-
 summary(fit1)$table
-ggsurvplot(fit1, data = datos_r8)
+ggsurvplot(fit1, data = datos)
 ```
-**La edad mediana a la primera unión es de aproximadamente 25 en la región Pacífico Central**
+**La edad mediana a la primera unión es de aproximadamente 25 años para las personas que viven en la región Pacífico Central y Metropolitana**
 
-**La proporción de personas que nunca se unen es de aproximadamente 0,125 o un 12,5 % de las personas que nunca se unen en la región Pacífico Central**
+**La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % de las personas de las regiones Pacífico Central y Metropolitana que nunca se unen**
 
-### Región Metropolitana
+### Regiones estratificadas
 ```{r}
-so.2 <- Surv(time = datos_r1$tiempo_union, event = datos_r1$evento)
-fit2 <- survfit(so.2 ~ 1)
+so.2 <- Surv(time = datos$tiempo_union, event = datos$evento)
+fit2 <- survfit(so.2 ~ region, data = datos)
 
-ggsurvplot(fit2, data = datos_r1)
+ggsurvplot(fit2, data = datos)
 ```
 
 ## Ejercicio 3
 
 ```{r}
 summary(fit1)
+summary(fit2)
 ```
 
 
-**a. La edad media de la primera unión es de 24.24**
+**a.** 
 
-**b. Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 19.83 años**
+**La edad mediana de la primera unión es de aproximadamente 24 años para las personas de las regiones Metropolitana y Pacífico Central**
+
+**La edad mediana de la primera unión es de aproximadamente 24,6 años para las personas de la región Metropolitana**
+
+**La edad mediana de la primera unión es de aproximadamente 24 años para las personas de la región Pacífico Central**
+
+**b.**
+ 
+ **Aproximadamente el 25 % de las personas de las regiones Pacífico Central y Metropolitana habían experimentado su primera unión conyugal al alcanzar los 20,65 años**
+
+ **Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 20,8 años**
+
+  **Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 19,8 años**
 
 **c.	Cree una curva de hazards**
 
+**Pacífico Central y Metropolitana juntos**
 ```{r}
 tabla_hazard <- data.frame(
   Tiempo = fit1$time,
@@ -175,6 +152,34 @@ plot(
   suav ~ tabla_hazard$Tiempo,
   type = "l",
 )
+```
+
+
+**Pacífico Central y Metropolitana separadas**
+```{r}
+tabla_hazard <- data.frame(
+  Tiempo = fit2$time,
+  Sobrevivientes = fit2$n.risk,
+  Eventos = fit2$n.event,
+  region = rep(names(fit2$strata), fit2$strata)
+) |>
+  group_by(region) |>
+  mutate(
+    delta_t = Tiempo - lag(Tiempo),
+    ht = (Eventos / Sobrevivientes) / delta_t
+  ) |>
+  filter(is.finite(ht))
+
+suavizam <- tabla_hazard |>
+  group_by(region) |>
+  mutate(suav = predict(loess(ht ~ Tiempo)))
+
+ggplot(
+  suavizam,
+  aes(Tiempo, suav, color = region)
+) +
+  geom_line() +
+  theme_classic()
 ```
 
 
