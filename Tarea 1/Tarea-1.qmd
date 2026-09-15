@@ -33,7 +33,7 @@ format:
      text: |
        \setlength{\mathindent}{0pt}
 execute: 
-  eval: false
+  eval: true
   message: false
   warning: false
 lang: es
@@ -41,15 +41,10 @@ editor_options:
   chunk_output_type: console
 ---
 
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
 ## Carga de datos
 
 ```{r}
-pacman::p_load(haven, dplyr, survival, survminer)
+pacman::p_load(haven, dplyr, survival, survminer, patchwork)
 
 datos <- read_dta("encfec2010.dta") |>
   filter(region == 1 | region == 8)
@@ -88,12 +83,14 @@ summary(datos$tiempo_union)
 ## Ejercicio 2
 
 ### Metropolitana y Pacífico Central
+
 ```{r}
 so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
 fit1 <- survfit(so.1 ~ 1)
 summary(fit1)$table
 ggsurvplot(fit1, data = datos)
 ```
+
 **La edad mediana a la primera unión es de aproximadamente 25 años para las personas que viven en la región Pacífico Central y Metropolitana**
 
 **La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % de las personas de las regiones Pacífico Central y Metropolitana que nunca se unen**
@@ -138,6 +135,7 @@ summary(fit2)
 **c.	Cree una curva de hazards**
 
 **Pacífico Central y Metropolitana juntos**
+
 ```{r}
 tabla_hazard <- data.frame(
   Tiempo = fit1$time,
@@ -161,6 +159,7 @@ plot(
 
 
 **Pacífico Central y Metropolitana separadas**
+
 ```{r}
 tabla_hazard <- data.frame(
   Tiempo = fit2$time,
@@ -188,34 +187,43 @@ ggplot(
 ```
 
 
+**Para la región Pacífico Central, hasta la edad de 45 años aproximadamente, los hazards de la primera unión son mayores que para la región Metropolitana, sin embargo, a partir de esta edad es al revés. Esto quiere decir que en la región Metropolitana, las personas que nunca se han unido conyugalmente tienen menor propensión de unirse comparado con los de la región Pacífico Central hasta los 45 años. En otras palabras, las personas que no se han unido en la región Metropolitana tienden a hacerlo a mayor edad.**
+
 ## Ejercicio 4
 
-
 ```{r}
-
-datos_r8 <- datos_r8 |>
+datos <- datos |>
   mutate(
     ednivel_cat = case_when(
       ednivel <= 10 ~ "Primaria o menos",
       ednivel <= 30 ~ "Secundaria",
-      ednivel <= 50 ~ "Postsecundaria",
-      TRUE ~ NA_character_
+      ednivel <= 50 ~ "Postsecundaria"
     )
   )
 ```
+
+
+::: {.callout-note}
+## Nota
+El `case_when` ya hace automáticamente el NA con los casos fuera de rango. 
+
+Se verificó con : `table(datos$ednivel_cat, useNA = "ifany")`
+
+PD: Aplica para antes y después de esto también.
+:::
+
 
 ## Ejercicio 5
 
 
 ```{r}
 
-datos_r8 <- datos_r8 |>
+datos <- datos |>
   mutate(
     religion_cat = case_when(
       r209 == 1 ~ "Católica",
       r209 %in% c(2, 3, 4, 5, 7) ~ "Otra religión",
-      r209 == 8 ~ "No creyente",
-      TRUE ~ NA_character_
+      r209 == 8 ~ "No creyente"
     ),
     sexo_cat = factor(
       r204,
@@ -224,66 +232,63 @@ datos_r8 <- datos_r8 |>
     ),
     zona_cat = case_when(
       zona == 1 ~ "Urbana",
-      zona == 2 ~ "Rural",
-      TRUE ~ NA_character_
+      zona == 2 ~ "Rural"
     )
   )
 ```
 
 ## Ejercicio 6
 
+### Regiones unidas
+
 ```{r}
 
-fit.sexo <- survfit(so.1 ~ as.factor(sexo_cat), data = datos_r8)
-fit.educacion <- survfit(so.1 ~ as.factor(ednivel_cat), data = datos_r8)
-fit.religion <- survfit(so.1 ~ as.factor(religion_cat), data = datos_r8)
-fit.zona <- survfit(so.1 ~ as.factor(zona_cat), data = datos_r8)
+fit.sexo <- survfit(so.1 ~ as.factor(sexo_cat), data = datos)
+fit.educacion <- survfit(so.1 ~ as.factor(ednivel_cat), data = datos)
+fit.religion <- survfit(so.1 ~ as.factor(religion_cat), data = datos)
+fit.zona <- survfit(so.1 ~ as.factor(zona_cat), data = datos)
 ```
 
 
 ```{r}
 graf.sexo <- ggsurvplot(
   fit.sexo,
-  data = datos_r8,
+  data = datos,
   pval = TRUE,
   title = "Sexo",
-  xlab = "Edad",
-  ylab = "Probabilidad de permanecer sin unión"
-)
+  legend.labs = c("Hombre","Mujer")
+) 
 
 graf.educacion <- ggsurvplot(
   fit.educacion,
-  data = datos_r8,
+  data = datos,
   pval = TRUE,
   title = "Educación",
-  xlab = "Edad",
-  ylab = "Probabilidad de permanecer sin unión"
-)
+  legend.labs = c("Postsecundaria","Primaria o menos", "Secundaria")
+) 
 
 graf.religion <- ggsurvplot(
   fit.religion,
-  data = datos_r8,
+  data = datos,
   pval = TRUE,
   title = "Religión",
-  xlab = "Edad",
-  ylab = "Probabilidad de permanecer sin unión"
-)
+  legend.labs = c("Católica","No creyente", "Otra")
+) 
 
 graf.zona <- ggsurvplot(
   fit.zona,
-  data = datos_r8,
+  data = datos,
   pval = TRUE,
   title = "Zona",
-  xlab = "Edad",
-  ylab = "Probabilidad de permanecer sin unión"
-)
+  legend.labs = c("Rural","Urbana")
+) 
 
 arrange_ggsurvplots(
   list(
-    graf.sexo,
-    graf.educacion,
-    graf.religion,
-    graf.zona
+    graf.sexo ,
+    graf.educacion ,
+    graf.religion ,
+    graf.zona 
   ),
   ncol = 2,
   nrow = 2,
@@ -292,14 +297,136 @@ arrange_ggsurvplots(
 ```
 
 
+```{r}
+datos <- datos |> 
+  tidyr::drop_na(ednivel_cat) |> 
+  mutate(ednivel_cat = factor(ednivel_cat)) 
+
+  pairwise_survdiff(Surv(time = tiempo_union, event = evento) ~ ednivel_cat, data = datos,p.adjust.method = "holm")
+```
+
+::: {.callout-tip}
+## Interpretación
+
+De acuerdo con las pruebas log-rank, con una significancia del 5 %:
+
+$H_0: \text{Todos los grupos tienen la misma curva de supervivencia}$
+
+$H_1: \text{Al menos uno de los grupos tiene una curva de supervivencia diferente}$
+
+Para la zona no hay diferencias significativas respecto a las curvas de supervivencia (p = 0,83)
+
+Para el sexo sí existen diferencias significativas respecto a las curvas de supervivencia (p < 0,0001)
+
+Para religión no hay diferencias significativas respecto a las curvas de supervivencia (p = 0,084)
+
+Para educación sí existen diferencias significativas respecto a las curvas de supervivencia (p < 0,0001)
+
+Específicamente para educación existen diferencias en las curvas de supervivencia entre Primaria o menos y Postsecundaria (p< 0,0001) así como entre Secundaria y Postsecundaria (p< 0,0001). Entre Primaria o menos y Secundaria no existen diferencias significativas (p = 0,99)
+
+:::
+
+
+### Por región
+
+```{r}
+
+datos <- as.data.frame(datos) # Esto se hizo porque los labels da STATA daban problemas con el facet 
+datos <- zap_labels(datos) 
+datos <- zap_formats(datos)
+datos$sexo_cat <- as.factor(datos$sexo_cat)
+datos$ednivel_cat <- as.factor(datos$ednivel_cat)
+datos$religion_cat <- as.factor(datos$religion_cat)
+datos$zona_cat <- as.factor(datos$zona_cat)
+
+
+fit.sexo <- survfit(Surv(time = tiempo_union, event = evento) ~ sexo_cat, data = datos)
+fit.educacion <- survfit(Surv(time = tiempo_union, event = evento) ~ ednivel_cat, data = datos)
+fit.religion <- survfit(Surv(time = tiempo_union, event = evento) ~ religion_cat, data = datos)
+fit.zona <- survfit(Surv(time = tiempo_union, event = evento) ~ zona_cat, data = datos)
+```
+
+
+```{r}
+graf.sexo <- ggsurvplot_facet(
+  fit.sexo,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Sexo"
+)
+
+graf.educacion <- ggsurvplot_facet(
+  fit.educacion,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Educación"
+)
+
+graf.religion <- ggsurvplot_facet(
+  fit.religion,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Religión"
+)
+
+graf.zona <- ggsurvplot_facet(
+  fit.zona,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Zona"
+)
+
+patchwork::wrap_plots(
+    graf.sexo,
+    graf.educacion,
+    graf.religion,
+    graf.zona
+  ,
+  ncol = 2
+)
+```
+
+
+```{r}
+  pairwise_survdiff(Surv(time = tiempo_union, event = evento) ~ ednivel_cat , data = datos[datos$region == "1",])
+
+```
+
+::: {.callout-tip}
+## Interpretación
+
+De acuerdo con las pruebas log-rank, con una significancia del 5 %:
+
+$H_0: \text{Todos los grupos tienen la misma curva de supervivencia} $
+
+$H_1: \text{Al menos uno de los grupos tiene una curva de supervivencia diferente}$
+
+Para la zona no hay diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana ni para la Pacífico Central (p = 0,59 ;p = 0,69)
+
+Para el sexo sí existen diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana y dentro de la Pacífico Central (p p < 0,0001 ;p = 0,0076).
+
+Para religión no hay diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana ni dentro la Pacífico Central (p = 0,2 ;p = 0,41)
+
+En el caso de educación sí existen diferencias significativas respecto a las curvas de supervivencia para la región Metropolitana (p < 0,0001) pero no así para la región Pacífico Central (p = 0,69).
+
+Específicamente para educación en la región Metropolitana existen diferencias en las curvas de supervivencia entre Primaria o menos y Postsecundaria (p< 0,0001) así como entre Secundaria y Postsecundaria (p< 0,0001). Entre Primaria o menos y Secundaria no existen diferencias significativas (p = 0,72).
+
+:::
+
+
+
 ## Ejercicio 7
 
-La función correcta es `survdiff()`, con dos letras `f`. Para todas las pruebas se utiliza un nivel de significancia de $\alpha=0.05$.
+Para todas las pruebas se utiliza un nivel de significancia de $\alpha=0.05$.
 
 ### Sexo
 
 ```{r}
-prueba.sexo <- survdiff(so.1 ~ sexo_cat, data = datos_r8)
+prueba.sexo <- survdiff(Surv(time = tiempo_union, event = evento) ~ sexo_cat, data = datos)
 prueba.sexo$pvalue
 ```
 
@@ -307,12 +434,12 @@ prueba.sexo$pvalue
 
 **Hipótesis alternativa:** $H_1: S_{Hombre}(t)\neq S_{Mujer}(t) \Rightarrow h_{Hombre}(t)\neq h_{Mujer}(t)$.
 
-**Interpretación:** Como el p-value es 0.0084, menor que 0.05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de que las curvas de supervivencia de la edad a la primera unión son diferentes entre hombres y mujeres.
+**Interpretación:** Como el p-value es menor 0.0001, y por tanto, menor que 0,05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de que las curvas de supervivencia de la edad a la primera unión son diferentes entre hombres y mujeres considerando ambas regiones.
 
 ### Educación
 
 ```{r}
-prueba.educacion <- survdiff(so.1 ~ ednivel_cat, data = datos_r8)
+prueba.educacion <- survdiff(Surv(time = tiempo_union, event = evento) ~ ednivel_cat, data = datos)
 prueba.educacion$pvalue
 ```
 
@@ -320,12 +447,12 @@ prueba.educacion$pvalue
 
 **Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
 
-**Interpretación:** Como el p-value es 0.6947, mayor que 0.05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas según el nivel educativo.
+**Interpretación:** Como el p-value es menor que 0,001, y por tanto menor que 0,05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de diferencias entre las curvas según el nivel educativo considerando ambas regiones.
 
 ### Religión
 
 ```{r}
-prueba.religion <- survdiff(so.1 ~ religion_cat, data = datos_r8)
+prueba.religion <- survdiff(Surv(time = tiempo_union, event = evento) ~ religion_cat, data = datos)
 prueba.religion$pvalue
 ```
 
@@ -333,12 +460,12 @@ prueba.religion$pvalue
 
 **Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
 
-**Interpretación:** Como el p-value es 0.4136, mayor que 0.05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas según la religión.
+**Interpretación:** Como el p-value es 0,0815, mayor que 0,05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas según la religión considerando ambas regiones.
 
 ### Zona
 
 ```{r}
-prueba.zona <- survdiff(so.1 ~ zona_cat, data = datos_r8)
+prueba.zona <- survdiff(Surv(time = tiempo_union, event = evento) ~ zona_cat, data = datos)
 prueba.zona$pvalue
 ```
 
@@ -346,8 +473,7 @@ prueba.zona$pvalue
 
 **Hipótesis alternativa:** $H_1: S_{Urbana}(t)\neq S_{Rural}(t) \Rightarrow h_{Urbana}(t)\neq h_{Rural}(t)$.
 
-**Interpretación:** Como el p-value es 0.5757, mayor que 0.05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas de las zonas urbana y rural.
-
+**Interpretación:** Como el p-value es 0.816, mayor que 0,05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas de las zonas urbana y rural considerando ambas regiones.
 
 ## Ejercicio 8
 
@@ -355,13 +481,22 @@ En `survdiff()`, `rho = 0` corresponde a la prueba log-rank y `rho = 1` correspo
 
 ```{r}
 survdiff(
-  so.1 ~ sexo_cat,
-  data = datos_r8,
+  Surv(time = tiempo_union, event = evento)~ sexo_cat,
+  data = datos,
   rho = 1
 )$pvalue
 ```
 
-**Interpretación:** La prueba log-rank produce un p-value de 0.0084 y la prueba Peto-Peto un p-value de 0.0004. Ambos valores son menores que 0.05, por lo que con ambas pruebas se rechaza la hipótesis nula de igualdad entre las curvas de supervivencia de hombres y mujeres. Por tanto, la prueba Peto-Peto conduce a la misma conclusión que la prueba log-rank: existen diferencias estadísticamente significativas por sexo en la edad a la primera unión conyugal.
+
+::: {.callout-note}
+## Interpretación
+
+ La prueba log-rank produce un p-value menor que 0,0001 y la prueba Peto-Peto un p-value menor que 0,0001. Ambos valores son menores que 0,05, por lo que con ambas pruebas se rechaza la hipótesis nula de igualdad entre las curvas de supervivencia de hombres y mujeres considerando ambas regiones. Por tanto, la prueba Peto-Peto conduce a la misma conclusión que la prueba log-rank, es decir, existen diferencias estadísticamente significativas por sexo en la edad a la primera unión conyugal considerando ambas regiones.
+
+
+
+:::
+
 
 
 
