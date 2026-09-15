@@ -98,13 +98,18 @@ ggsurvplot(fit1, data = datos)
 
 **La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % de las personas de las regiones Pacífico Central y Metropolitana que nunca se unen**
 
-### Regiones estratificadas
+###  Estratificando por región
+
 ```{r}
 so.2 <- Surv(time = datos$tiempo_union, event = datos$evento)
 fit2 <- survfit(so.2 ~ region, data = datos)
 
 ggsurvplot(fit2, data = datos)
 ```
+
+**La edad mediana a la primera unión es de aproximadamente 25 años para las personas que viven en la región Pacífico Central como para las que habitan en la región  Metropolitana**
+
+**La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % en la región  Pacífico Central así como en la región  Metropolitana**
 
 ## Ejercicio 3
 
