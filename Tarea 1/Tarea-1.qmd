@@ -256,39 +256,39 @@ graf.sexo <- ggsurvplot(
   data = datos,
   pval = TRUE,
   title = "Sexo",
-  legend.labs = c("Hombre","Mujer")
-) 
+  legend.labs = c("Hombre", "Mujer")
+)
 
 graf.educacion <- ggsurvplot(
   fit.educacion,
   data = datos,
   pval = TRUE,
   title = "Educación",
-  legend.labs = c("Postsecundaria","Primaria o menos", "Secundaria")
-) 
+  legend.labs = c("Postsecundaria", "Primaria o menos", "Secundaria")
+)
 
 graf.religion <- ggsurvplot(
   fit.religion,
   data = datos,
   pval = TRUE,
   title = "Religión",
-  legend.labs = c("Católica","No creyente", "Otra")
-) 
+  legend.labs = c("Católica", "No creyente", "Otra")
+)
 
 graf.zona <- ggsurvplot(
   fit.zona,
   data = datos,
   pval = TRUE,
   title = "Zona",
-  legend.labs = c("Rural","Urbana")
-) 
+  legend.labs = c("Rural", "Urbana")
+)
 
 arrange_ggsurvplots(
   list(
-    graf.sexo ,
-    graf.educacion ,
-    graf.religion ,
-    graf.zona 
+    graf.sexo,
+    graf.educacion,
+    graf.religion,
+    graf.zona
   ),
   ncol = 2,
   nrow = 2,
@@ -298,11 +298,15 @@ arrange_ggsurvplots(
 
 
 ```{r}
-datos <- datos |> 
-  tidyr::drop_na(ednivel_cat) |> 
-  mutate(ednivel_cat = factor(ednivel_cat)) 
+datos <- datos |>
+  tidyr::drop_na(ednivel_cat) |>
+  mutate(ednivel_cat = factor(ednivel_cat))
 
-  pairwise_survdiff(Surv(time = tiempo_union, event = evento) ~ ednivel_cat, data = datos,p.adjust.method = "holm")
+pairwise_survdiff(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos,
+  p.adjust.method = "holm"
+)
 ```
 
 ::: {.callout-tip}
@@ -331,8 +335,8 @@ Específicamente para educación existen diferencias en las curvas de superviven
 
 ```{r}
 
-datos <- as.data.frame(datos) # Esto se hizo porque los labels da STATA daban problemas con el facet 
-datos <- zap_labels(datos) 
+datos <- as.data.frame(datos) # Esto se hizo porque los labels da STATA daban problemas con el facet
+datos <- zap_labels(datos)
 datos <- zap_formats(datos)
 datos$sexo_cat <- as.factor(datos$sexo_cat)
 datos$ednivel_cat <- as.factor(datos$ednivel_cat)
@@ -340,10 +344,22 @@ datos$religion_cat <- as.factor(datos$religion_cat)
 datos$zona_cat <- as.factor(datos$zona_cat)
 
 
-fit.sexo <- survfit(Surv(time = tiempo_union, event = evento) ~ sexo_cat, data = datos)
-fit.educacion <- survfit(Surv(time = tiempo_union, event = evento) ~ ednivel_cat, data = datos)
-fit.religion <- survfit(Surv(time = tiempo_union, event = evento) ~ religion_cat, data = datos)
-fit.zona <- survfit(Surv(time = tiempo_union, event = evento) ~ zona_cat, data = datos)
+fit.sexo <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
+  data = datos
+)
+fit.educacion <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos
+)
+fit.religion <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ religion_cat,
+  data = datos
+)
+fit.zona <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ zona_cat,
+  data = datos
+)
 ```
 
 
@@ -381,19 +397,20 @@ graf.zona <- ggsurvplot_facet(
 )
 
 patchwork::wrap_plots(
-    graf.sexo,
-    graf.educacion,
-    graf.religion,
-    graf.zona
-  ,
+  graf.sexo,
+  graf.educacion,
+  graf.religion,
+  graf.zona,
   ncol = 2
 )
 ```
 
 
 ```{r}
-  pairwise_survdiff(Surv(time = tiempo_union, event = evento) ~ ednivel_cat , data = datos[datos$region == "1",])
-
+pairwise_survdiff(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos[datos$region == "1", ]
+)
 ```
 
 ::: {.callout-tip}
@@ -426,7 +443,10 @@ Para todas las pruebas se utiliza un nivel de significancia de $\alpha=0.05$.
 ### Sexo
 
 ```{r}
-prueba.sexo <- survdiff(Surv(time = tiempo_union, event = evento) ~ sexo_cat, data = datos)
+prueba.sexo <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
+  data = datos
+)
 prueba.sexo$pvalue
 ```
 
@@ -439,7 +459,10 @@ prueba.sexo$pvalue
 ### Educación
 
 ```{r}
-prueba.educacion <- survdiff(Surv(time = tiempo_union, event = evento) ~ ednivel_cat, data = datos)
+prueba.educacion <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos
+)
 prueba.educacion$pvalue
 ```
 
@@ -452,7 +475,10 @@ prueba.educacion$pvalue
 ### Religión
 
 ```{r}
-prueba.religion <- survdiff(Surv(time = tiempo_union, event = evento) ~ religion_cat, data = datos)
+prueba.religion <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ religion_cat,
+  data = datos
+)
 prueba.religion$pvalue
 ```
 
@@ -465,7 +491,10 @@ prueba.religion$pvalue
 ### Zona
 
 ```{r}
-prueba.zona <- survdiff(Surv(time = tiempo_union, event = evento) ~ zona_cat, data = datos)
+prueba.zona <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ zona_cat,
+  data = datos
+)
 prueba.zona$pvalue
 ```
 
@@ -481,7 +510,7 @@ En `survdiff()`, `rho = 0` corresponde a la prueba log-rank y `rho = 1` correspo
 
 ```{r}
 survdiff(
-  Surv(time = tiempo_union, event = evento)~ sexo_cat,
+  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
   data = datos,
   rho = 1
 )$pvalue
