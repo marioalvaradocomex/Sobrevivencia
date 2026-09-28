@@ -1,5 +1,5 @@
 ---
-title: "Tarea 1"
+title: "Tarea 2"
 subtitle: "SP-1637 Análisis de Sobrevivencia — IIC-2026"
 author: 
     - 'Gustavo Murillo'
@@ -41,8 +41,9 @@ editor_options:
   chunk_output_type: console
 ---
 
-## Carga de datos
+# Datos
 
+## Base de datos
 ```{r}
 pacman::p_load(haven, dplyr, survival, survminer, patchwork)
 
@@ -53,9 +54,7 @@ summary(datos)
 table(datos$region)
 ```
 
-
-## Ejercicio 1
-
+## Creación de variables
 ```{r}
 datos <- datos |>
   mutate(
@@ -79,34 +78,46 @@ table(datos$r215, datos$evento, useNA = "ifany")
 summary(datos$tiempo_union)
 ```
 
+```{r}
+datos <- datos |>
+  mutate(
+    ednivel_cat = case_when(
+      ednivel <= 10 ~ "Primaria o menos",
+      ednivel <= 30 ~ "Secundaria",
+      ednivel <= 50 ~ "Postsecundaria"
+    ),
 
-## Ejercicio 2
+    religion_cat = case_when(
+      r209 == 1 ~ "Católica",
+      r209 %in% c(2, 3, 4, 5, 7) ~ "Otra religión",
+      r209 == 8 ~ "No creyente"
+    ),
+    sexo_cat = factor(
+      r204,
+      levels = c(1, 2),
+      labels = c("Hombre", "Mujer")
+    ),
+    zona_cat = case_when(
+      zona == 1 ~ "Urbana",
+      zona == 2 ~ "Rural"
+    ),
+    ednivel = na_if(ednivel, 99)
+  )
+```
 
-### Metropolitana y Pacífico Central
+# Objeto de supervivencia
 
 ```{r}
 so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
-fit1 <- survfit(so.1 ~ 1)
-summary(fit1)$table
-ggsurvplot(fit1, data = datos)
 ```
 
-**La edad mediana a la primera unión es de aproximadamente 25 años para las personas que viven en la región Pacífico Central y Metropolitana**
+# Ejercicio 1 
 
-**La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % de las personas de las regiones Pacífico Central y Metropolitana que nunca se unen**
-
-###  Estratificando por región
-
+## Modelo de riesgos proporcionales de Cox
 ```{r}
-so.2 <- Surv(time = datos$tiempo_union, event = datos$evento)
-fit2 <- survfit(so.2 ~ region, data = datos)
-
-ggsurvplot(fit2, data = datos)
+mod_rp_cox <- coxph(so.1 ~ ednivel + religion_cat + sexo_cat, data = datos)
+summary(mod_rp_cox)
 ```
-
-**La edad mediana a la primera unión es de aproximadamente 25 años para las personas que viven en la región Pacífico Central como para las que habitan en la región  Metropolitana**
-
-**La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % en la región  Pacífico Central así como en la región  Metropolitana**
 
 ## Ejercicio 3
 
