@@ -1,0 +1,545 @@
+---
+title: "Tarea 1"
+subtitle: "SP-1637 Análisis de Sobrevivencia — IIC-2026"
+author: 
+    - 'Gustavo Murillo'
+    - 'Mario Alvarado'
+date: today
+date-format: long 
+format:
+  pdf:
+   documentclass: article
+   papersize: letter
+   classoption: [fleqn]
+   geometry:
+     - top=2.5cm
+     - bottom=2.5cm
+     - left=2.5cm
+     - right=2.5cm
+   toc: true
+   toc-depth: 3
+   toc-title: "Contenidos"
+   number-sections: false
+   colorlinks: true
+   linkcolor: RoyalBlue
+   urlcolor: RoyalBlue
+   highlight-style: github
+   code-block-bg: "#f7f7f7"
+   code-block-border-left: "#cccccc"
+   code-overflow: wrap
+   fig-pos: "H"
+   fig-align: center
+   include-in-header:
+     text: |
+       \setlength{\mathindent}{0pt}
+execute: 
+  eval: true
+  message: false
+  warning: false
+lang: es
+editor_options: 
+  chunk_output_type: console
+---
+
+## Carga de datos
+
+```{r}
+pacman::p_load(haven, dplyr, survival, survminer, patchwork)
+
+datos <- read_dta("encfec2010.dta") |>
+  filter(region == 1 | region == 8)
+
+summary(datos)
+table(datos$region)
+```
+
+
+## Ejercicio 1
+
+```{r}
+datos <- datos |>
+  mutate(
+    r201b = as.numeric(na_if(r201b, 99)),
+    r201c = as.numeric(na_if(r201c, 9999)),
+    r216m = if_else(r216m %in% c(98, 99), NA, as.numeric(r216m)),
+    r216a = if_else(r216a %in% c(9998, 9999), NA, as.numeric(r216a)),
+    evento = case_when(
+      r215 == 1 ~ 0,
+      r215 %in% c(2, 3) ~ 1
+    ),
+    tiempo_union = case_when(
+      evento == 0 ~ as.numeric(r202),
+      evento == 1 ~ ((r216a - r201c) * 12 + (r216m - r201b)) / 12
+    )
+  )
+
+summary(datos$r201b)
+summary(datos$r216m)
+table(datos$r215, datos$evento, useNA = "ifany")
+summary(datos$tiempo_union)
+```
+
+
+## Ejercicio 2
+
+### Metropolitana y Pacífico Central
+
+```{r}
+so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
+fit1 <- survfit(so.1 ~ 1)
+summary(fit1)$table
+ggsurvplot(fit1, data = datos)
+```
+
+**La edad mediana a la primera unión es de aproximadamente 25 años para las personas que viven en la región Pacífico Central y Metropolitana**
+
+**La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % de las personas de las regiones Pacífico Central y Metropolitana que nunca se unen**
+
+###  Estratificando por región
+
+```{r}
+so.2 <- Surv(time = datos$tiempo_union, event = datos$evento)
+fit2 <- survfit(so.2 ~ region, data = datos)
+
+ggsurvplot(fit2, data = datos)
+```
+
+**La edad mediana a la primera unión es de aproximadamente 25 años para las personas que viven en la región Pacífico Central como para las que habitan en la región  Metropolitana**
+
+**La proporción de personas que nunca se unen es de aproximadamente 0,1 o un 10 % en la región  Pacífico Central así como en la región  Metropolitana**
+
+## Ejercicio 3
+
+```{r}
+summary(fit1)
+summary(fit2)
+```
+
+
+**a.** 
+
+**La edad mediana de la primera unión es de aproximadamente 24 años para las personas de las regiones Metropolitana y Pacífico Central**
+
+**La edad mediana de la primera unión es de aproximadamente 24,6 años para las personas de la región Metropolitana**
+
+**La edad mediana de la primera unión es de aproximadamente 24 años para las personas de la región Pacífico Central**
+
+**b.**
+ 
+ **Aproximadamente el 25 % de las personas de las regiones Pacífico Central y Metropolitana habían experimentado su primera unión conyugal al alcanzar los 20,65 años**
+
+ **Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 20,8 años**
+
+  **Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 19,8 años**
+
+**c.	Cree una curva de hazards**
+
+**Pacífico Central y Metropolitana juntos**
+
+```{r}
+tabla_hazard <- data.frame(
+  Tiempo = fit1$time,
+  Sobrevivientes = fit1$n.risk,
+  Eventos = fit1$n.event
+) |>
+  mutate(
+    delta_t = Tiempo - lag(Tiempo),
+    ht = (Eventos / Sobrevivientes) / delta_t
+  ) |>
+  filter(is.finite(ht))
+
+suavizam <- loess(ht ~ Tiempo, data = tabla_hazard)
+suav <- predict(suavizam)
+
+plot(
+  suav ~ tabla_hazard$Tiempo,
+  type = "l",
+)
+```
+
+
+**Pacífico Central y Metropolitana separadas**
+
+```{r}
+tabla_hazard <- data.frame(
+  Tiempo = fit2$time,
+  Sobrevivientes = fit2$n.risk,
+  Eventos = fit2$n.event,
+  region = rep(names(fit2$strata), fit2$strata)
+) |>
+  group_by(region) |>
+  mutate(
+    delta_t = Tiempo - lag(Tiempo),
+    ht = (Eventos / Sobrevivientes) / delta_t
+  ) |>
+  filter(is.finite(ht))
+
+suavizam <- tabla_hazard |>
+  group_by(region) |>
+  mutate(suav = predict(loess(ht ~ Tiempo)))
+
+ggplot(
+  suavizam,
+  aes(Tiempo, suav, color = region)
+) +
+  geom_line() +
+  theme_classic()
+```
+
+
+**Para la región Pacífico Central, hasta la edad de 45 años aproximadamente, los hazards de la primera unión son mayores que para la región Metropolitana, sin embargo, a partir de esta edad es al revés. Esto quiere decir que en la región Metropolitana, las personas que nunca se han unido conyugalmente tienen menor propensión de unirse comparado con los de la región Pacífico Central hasta los 45 años. En otras palabras, las personas que no se han unido en la región Metropolitana tienden a hacerlo a mayor edad.**
+
+## Ejercicio 4
+
+```{r}
+datos <- datos |>
+  mutate(
+    ednivel_cat = case_when(
+      ednivel <= 10 ~ "Primaria o menos",
+      ednivel <= 30 ~ "Secundaria",
+      ednivel <= 50 ~ "Postsecundaria"
+    )
+  )
+```
+
+
+::: {.callout-note}
+## Nota
+El `case_when` ya hace automáticamente el NA con los casos fuera de rango. 
+
+Se verificó con : `table(datos$ednivel_cat, useNA = "ifany")`
+
+PD: Aplica para antes y después de esto también.
+:::
+
+
+## Ejercicio 5
+
+
+```{r}
+
+datos <- datos |>
+  mutate(
+    religion_cat = case_when(
+      r209 == 1 ~ "Católica",
+      r209 %in% c(2, 3, 4, 5, 7) ~ "Otra religión",
+      r209 == 8 ~ "No creyente"
+    ),
+    sexo_cat = factor(
+      r204,
+      levels = c(1, 2),
+      labels = c("Hombre", "Mujer")
+    ),
+    zona_cat = case_when(
+      zona == 1 ~ "Urbana",
+      zona == 2 ~ "Rural"
+    )
+  )
+```
+
+## Ejercicio 6
+
+### Regiones unidas
+
+```{r}
+
+fit.sexo <- survfit(so.1 ~ as.factor(sexo_cat), data = datos)
+fit.educacion <- survfit(so.1 ~ as.factor(ednivel_cat), data = datos)
+fit.religion <- survfit(so.1 ~ as.factor(religion_cat), data = datos)
+fit.zona <- survfit(so.1 ~ as.factor(zona_cat), data = datos)
+```
+
+
+```{r}
+graf.sexo <- ggsurvplot(
+  fit.sexo,
+  data = datos,
+  pval = TRUE,
+  title = "Sexo",
+  legend.labs = c("Hombre", "Mujer")
+)
+
+graf.educacion <- ggsurvplot(
+  fit.educacion,
+  data = datos,
+  pval = TRUE,
+  title = "Educación",
+  legend.labs = c("Postsecundaria", "Primaria o menos", "Secundaria")
+)
+
+graf.religion <- ggsurvplot(
+  fit.religion,
+  data = datos,
+  pval = TRUE,
+  title = "Religión",
+  legend.labs = c("Católica", "No creyente", "Otra")
+)
+
+graf.zona <- ggsurvplot(
+  fit.zona,
+  data = datos,
+  pval = TRUE,
+  title = "Zona",
+  legend.labs = c("Rural", "Urbana")
+)
+
+arrange_ggsurvplots(
+  list(
+    graf.sexo,
+    graf.educacion,
+    graf.religion,
+    graf.zona
+  ),
+  ncol = 2,
+  nrow = 2,
+  print = TRUE
+)
+```
+
+
+```{r}
+datos <- datos |>
+  tidyr::drop_na(ednivel_cat) |>
+  mutate(ednivel_cat = factor(ednivel_cat))
+
+pairwise_survdiff(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos,
+  p.adjust.method = "holm"
+)
+```
+
+::: {.callout-tip}
+## Interpretación
+
+De acuerdo con las pruebas log-rank, con una significancia del 5 %:
+
+$H_0: \text{Todos los grupos tienen la misma curva de supervivencia}$
+
+$H_1: \text{Al menos uno de los grupos tiene una curva de supervivencia diferente}$
+
+Para la zona no hay diferencias significativas respecto a las curvas de supervivencia (p = 0,83)
+
+Para el sexo sí existen diferencias significativas respecto a las curvas de supervivencia (p < 0,0001)
+
+Para religión no hay diferencias significativas respecto a las curvas de supervivencia (p = 0,084)
+
+Para educación sí existen diferencias significativas respecto a las curvas de supervivencia (p < 0,0001)
+
+Específicamente para educación existen diferencias en las curvas de supervivencia entre Primaria o menos y Postsecundaria (p< 0,0001) así como entre Secundaria y Postsecundaria (p< 0,0001). Entre Primaria o menos y Secundaria no existen diferencias significativas (p = 0,99)
+
+:::
+
+
+### Por región
+
+```{r}
+
+datos <- as.data.frame(datos) # Esto se hizo porque los labels da STATA daban problemas con el facet
+datos <- zap_labels(datos)
+datos <- zap_formats(datos)
+datos$sexo_cat <- as.factor(datos$sexo_cat)
+datos$ednivel_cat <- as.factor(datos$ednivel_cat)
+datos$religion_cat <- as.factor(datos$religion_cat)
+datos$zona_cat <- as.factor(datos$zona_cat)
+
+
+fit.sexo <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
+  data = datos
+)
+fit.educacion <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos
+)
+fit.religion <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ religion_cat,
+  data = datos
+)
+fit.zona <- survfit(
+  Surv(time = tiempo_union, event = evento) ~ zona_cat,
+  data = datos
+)
+```
+
+
+```{r}
+graf.sexo <- ggsurvplot_facet(
+  fit.sexo,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Sexo"
+)
+
+graf.educacion <- ggsurvplot_facet(
+  fit.educacion,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Educación"
+)
+
+graf.religion <- ggsurvplot_facet(
+  fit.religion,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Religión"
+)
+
+graf.zona <- ggsurvplot_facet(
+  fit.zona,
+  data = datos,
+  facet.by = "region",
+  pval = TRUE,
+  title = "Zona"
+)
+
+patchwork::wrap_plots(
+  graf.sexo,
+  graf.educacion,
+  graf.religion,
+  graf.zona,
+  ncol = 2
+)
+```
+
+
+```{r}
+pairwise_survdiff(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos[datos$region == "1", ]
+)
+```
+
+::: {.callout-tip}
+## Interpretación
+
+De acuerdo con las pruebas log-rank, con una significancia del 5 %:
+
+$H_0: \text{Todos los grupos tienen la misma curva de supervivencia} $
+
+$H_1: \text{Al menos uno de los grupos tiene una curva de supervivencia diferente}$
+
+Para la zona no hay diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana ni para la Pacífico Central (p = 0,59 ;p = 0,69)
+
+Para el sexo sí existen diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana y dentro de la Pacífico Central (p p < 0,0001 ;p = 0,0076).
+
+Para religión no hay diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana ni dentro la Pacífico Central (p = 0,2 ;p = 0,41)
+
+En el caso de educación sí existen diferencias significativas respecto a las curvas de supervivencia para la región Metropolitana (p < 0,0001) pero no así para la región Pacífico Central (p = 0,69).
+
+Específicamente para educación en la región Metropolitana existen diferencias en las curvas de supervivencia entre Primaria o menos y Postsecundaria (p< 0,0001) así como entre Secundaria y Postsecundaria (p< 0,0001). Entre Primaria o menos y Secundaria no existen diferencias significativas (p = 0,72).
+
+:::
+
+
+
+## Ejercicio 7
+
+Para todas las pruebas se utiliza un nivel de significancia de $\alpha=0.05$.
+
+### Sexo
+
+```{r}
+prueba.sexo <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
+  data = datos
+)
+prueba.sexo$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Hombre}(t)=S_{Mujer}(t) \Rightarrow h_{Hombre}(t)=h_{Mujer}(t)$.
+
+**Hipótesis alternativa:** $H_1: S_{Hombre}(t)\neq S_{Mujer}(t) \Rightarrow h_{Hombre}(t)\neq h_{Mujer}(t)$.
+
+**Interpretación:** Como el p-value es menor 0.0001, y por tanto, menor que 0,05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de que las curvas de supervivencia de la edad a la primera unión son diferentes entre hombres y mujeres considerando ambas regiones.
+
+### Educación
+
+```{r}
+prueba.educacion <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
+  data = datos
+)
+prueba.educacion$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Primaria}(t)=S_{Secundaria}(t)=S_{Postsecundaria}(t) \Rightarrow h_{Primaria}(t)=h_{Secundaria}(t)=h_{Postsecundaria}(t)$.
+
+**Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
+
+**Interpretación:** Como el p-value es menor que 0,001, y por tanto menor que 0,05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de diferencias entre las curvas según el nivel educativo considerando ambas regiones.
+
+### Religión
+
+```{r}
+prueba.religion <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ religion_cat,
+  data = datos
+)
+prueba.religion$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Católica}(t)=S_{Otra}(t)=S_{NoCreyente}(t) \Rightarrow h_{Católica}(t)=h_{Otra}(t)=h_{NoCreyente}(t)$.
+
+**Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
+
+**Interpretación:** Como el p-value es 0,0815, mayor que 0,05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas según la religión considerando ambas regiones.
+
+### Zona
+
+```{r}
+prueba.zona <- survdiff(
+  Surv(time = tiempo_union, event = evento) ~ zona_cat,
+  data = datos
+)
+prueba.zona$pvalue
+```
+
+**Hipótesis nula:** $H_0: S_{Urbana}(t)=S_{Rural}(t) \Rightarrow h_{Urbana}(t)=h_{Rural}(t)$.
+
+**Hipótesis alternativa:** $H_1: S_{Urbana}(t)\neq S_{Rural}(t) \Rightarrow h_{Urbana}(t)\neq h_{Rural}(t)$.
+
+**Interpretación:** Como el p-value es 0.816, mayor que 0,05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas de las zonas urbana y rural considerando ambas regiones.
+
+## Ejercicio 8
+
+En `survdiff()`, `rho = 0` corresponde a la prueba log-rank y `rho = 1` corresponde a la prueba Peto-Peto.
+
+```{r}
+survdiff(
+  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
+  data = datos,
+  rho = 1
+)$pvalue
+```
+
+
+::: {.callout-note}
+## Interpretación
+
+ La prueba log-rank produce un p-value menor que 0,0001 y la prueba Peto-Peto un p-value menor que 0,0001. Ambos valores son menores que 0,05, por lo que con ambas pruebas se rechaza la hipótesis nula de igualdad entre las curvas de supervivencia de hombres y mujeres considerando ambas regiones. Por tanto, la prueba Peto-Peto conduce a la misma conclusión que la prueba log-rank, es decir, existen diferencias estadísticamente significativas por sexo en la edad a la primera unión conyugal considerando ambas regiones.
+
+
+
+:::
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
