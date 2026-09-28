@@ -114,10 +114,36 @@ so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
 # Ejercicio 1 
 
 ## Modelo de riesgos proporcionales de Cox
+
 ```{r}
 mod_rp_cox <- coxph(so.1 ~ ednivel + religion_cat + sexo_cat, data = datos)
 summary(mod_rp_cox)
+
+(0.9889 - 1) * 100 # ednivel
+(0.9804 - 1) * 100 # no creyente
+(1.1088 - 1) * 100 # Otra religión
+(1.4269 - 1) * 100 # sexo mujer
 ```
+
+
+::: {.callout-tip}
+
+## Interpretación
+
+**Significativos**
+
+- Por cada unidad adicional en el nivel educativo, el hazard de la primera unión disminuye en 1,11 %. Lo anterior, manteniendo las demás variables constantes.
+
+- Para las mujeres, el hazard de la primera unión es 42,69 % mayor que para los hombres. Lo anterior, manteniendo las demás variables constantes.
+
+**No significativos**
+
+- Para las personas que **no** son creyentes, el hazard de la primera unión es 1,96 % menor que para las personas que son creyentes. Lo anterior, manteniendo las demás variables constantes.
+
+- Para las personas que pertenecen a **otra religión**, el hazard de la primera unión es 10,88 % mayor que para las personas que son creyentes. Lo anterior, manteniendo las demás variables constantes.
+:::
+
+
 
 ## Ejercicio 3
 
