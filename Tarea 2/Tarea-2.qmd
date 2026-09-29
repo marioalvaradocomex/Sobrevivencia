@@ -113,6 +113,8 @@ so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
 
 # Ejercicio 1 
 
+1.	Estime un modelo de riesgos proporcionales de Cox para analizar simultáneamente las diferencias en el riesgo (hazard) de la primera unión según nivel de educación (variable cuantitativa discreta) y religión y sexo (variables cualitativas). Interprete los hazard ratios estimados. (20 ptos)
+
 ## Modelo de riesgos proporcionales de Cox
 
 ```{r}
@@ -148,6 +150,8 @@ summary(mod_rp_cox)
 
 # Ejercicio 2
 
+2.	Con gráficos de proporcionalidad, analice el supuesto de riesgos proporcionales para las distintas variables.  Escriba en pocas oraciones qué observa sobre el cumplimiento de los supuestos. (10 ptos)
+
 ```{r}
 datos$No_creyente <- 1 * (datos$religion_cat == "No creyente")
 datos$Otra_reli <- 1 * (datos$religion_cat == "Otra religión")
@@ -175,6 +179,8 @@ ggcoxzph(p_rp)
 :::
 
 ## Ejercicio 3
+
+Con un 5% de significancia, analice el supuesto de riesgos proporcionales con la prueba de hipótesis basada en los residuos de Schoenfeld (la prueba de hipótesis estudiada en clase). Diga si los resultados de la prueba coinciden con su análisis gráfico.  Por qué sí o por qué no? .  Si no se cumple el supuesto, corrija el modelo con la función tt, decidiendo si toma la variable entera o usa “nudos” (“knotts”) (10 ptos.)
 
 ```{r}
 cox.zph(cox_2)
@@ -228,432 +234,333 @@ cox_corregido <- coxph(
 
 :::
 
+# Ejercicio 4
 
+Con un gráfico de residuos de deviancia vs el componente lineal ajustado, analice si hay valores extremos.  Utilice los valores frontera de -2 y 2 para definir a los valores extremos.  Si encuentra valores extremos, diseñe una tabla en la que incluya el componente lineal ajustado, el residuo de deviancia, y los valores de educación y año de nacimiento (cohorte), y diga por qué son valores extremos.  Si encuentra más de 10 valores extremos, puede seleccionar una submuestra para describirlos. (20 ptos.)
 
-**a.** 
-
-**La edad mediana de la primera unión es de aproximadamente 24 años para las personas de las regiones Metropolitana y Pacífico Central**
-
-**La edad mediana de la primera unión es de aproximadamente 24,6 años para las personas de la región Metropolitana**
-
-**La edad mediana de la primera unión es de aproximadamente 24 años para las personas de la región Pacífico Central**
-
-**b.**
- 
- **Aproximadamente el 25 % de las personas de las regiones Pacífico Central y Metropolitana habían experimentado su primera unión conyugal al alcanzar los 20,65 años**
-
- **Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 20,8 años**
-
-  **Aproximadamente el 25 % de las personas de la región Pacífico Central había experimentado su primera unión conyugal al alcanzar los 19,8 años**
-
-**c.	Cree una curva de hazards**
-
-**Pacífico Central y Metropolitana juntos**
+## Gráfico de residuos de deviancia
 
 ```{r}
-tabla_hazard <- data.frame(
-  Tiempo = fit1$time,
-  Sobrevivientes = fit1$n.risk,
-  Eventos = fit1$n.event
-) |>
-  mutate(
-    delta_t = Tiempo - lag(Tiempo),
-    ht = (Eventos / Sobrevivientes) / delta_t
-  ) |>
-  filter(is.finite(ht))
-
-suavizam <- loess(ht ~ Tiempo, data = tabla_hazard)
-suav <- predict(suavizam)
+res_dev <- residuals(mod_rp_cox, type = "deviance")
+xb <- predict(mod_rp_cox, type = "lp")
 
 plot(
-  suav ~ tabla_hazard$Tiempo,
-  type = "l",
+  res_dev ~ xb,
+  xlab = "Componente lineal ajustado",
+  ylab = "Residuos de deviancia",
+  ylim = range(c(res_dev, -2, 2))
 )
+abline(h = c(-2, 2), col = "red", lty = 2, lwd = 2)
 ```
 
+Los residuos que se encuentran por encima de 2 o por debajo de -2 se consideran valores extremos. A diferencia de una regresión lineal, en este gráfico no se busca verificar homoscedasticidad, sino identificar observaciones que el modelo predice de manera deficiente.
 
-**Pacífico Central y Metropolitana separadas**
+## Identificación de los valores extremos
 
 ```{r}
-tabla_hazard <- data.frame(
-  Tiempo = fit2$time,
-  Sobrevivientes = fit2$n.risk,
-  Eventos = fit2$n.event,
-  region = rep(names(fit2$strata), fit2$strata)
-) |>
-  group_by(region) |>
+# Los nombres de los residuos indican las filas utilizadas por el modelo.
+filas_modelo <- as.integer(names(res_dev))
+
+tabla_extremos <- datos[filas_modelo, ] |>
   mutate(
-    delta_t = Tiempo - lag(Tiempo),
-    ht = (Eventos / Sobrevivientes) / delta_t
+    componente_lineal = as.numeric(xb),
+    residuo_deviancia = as.numeric(res_dev),
+    educacion = as.character(as_factor(ednivel)),
+    cohorte = as.numeric(r201c)
   ) |>
-  filter(is.finite(ht))
+  filter(abs(residuo_deviancia) > 2) |>
+  arrange(desc(abs(residuo_deviancia)))
 
-suavizam <- tabla_hazard |>
-  group_by(region) |>
-  mutate(suav = predict(loess(ht ~ Tiempo)))
-
-ggplot(
-  suavizam,
-  aes(Tiempo, suav, color = region)
-) +
-  geom_line() +
-  theme_classic()
-```
-
-
-**Para la región Pacífico Central, hasta la edad de 45 años aproximadamente, los hazards de la primera unión son mayores que para la región Metropolitana, sin embargo, a partir de esta edad es al revés. Esto quiere decir que en la región Metropolitana, las personas que nunca se han unido conyugalmente tienen menor propensión de unirse comparado con los de la región Pacífico Central hasta los 45 años. En otras palabras, las personas que no se han unido en la región Metropolitana tienden a hacerlo a mayor edad.**
-
-## Ejercicio 4
-
-```{r}
-datos <- datos |>
-  mutate(
-    ednivel_cat = case_when(
-      ednivel <= 10 ~ "Primaria o menos",
-      ednivel <= 30 ~ "Secundaria",
-      ednivel <= 50 ~ "Postsecundaria"
-    )
-  )
-```
-
-
-::: {.callout-note}
-## Nota
-El `case_when` ya hace automáticamente el NA con los casos fuera de rango. 
-
-Se verificó con : `table(datos$ednivel_cat, useNA = "ifany")`
-
-PD: Aplica para antes y después de esto también.
-:::
-
-
-## Ejercicio 5
-
-
-```{r}
-
-datos <- datos |>
-  mutate(
-    religion_cat = case_when(
-      r209 == 1 ~ "Católica",
-      r209 %in% c(2, 3, 4, 5, 7) ~ "Otra religión",
-      r209 == 8 ~ "No creyente"
-    ),
-    sexo_cat = factor(
-      r204,
-      levels = c(1, 2),
-      labels = c("Hombre", "Mujer")
-    ),
-    zona_cat = case_when(
-      zona == 1 ~ "Urbana",
-      zona == 2 ~ "Rural"
-    )
-  )
-```
-
-## Ejercicio 6
-
-### Regiones unidas
-
-```{r}
-
-fit.sexo <- survfit(so.1 ~ as.factor(sexo_cat), data = datos)
-fit.educacion <- survfit(so.1 ~ as.factor(ednivel_cat), data = datos)
-fit.religion <- survfit(so.1 ~ as.factor(religion_cat), data = datos)
-fit.zona <- survfit(so.1 ~ as.factor(zona_cat), data = datos)
-```
-
-
-```{r}
-graf.sexo <- ggsurvplot(
-  fit.sexo,
-  data = datos,
-  pval = TRUE,
-  title = "Sexo",
-  legend.labs = c("Hombre", "Mujer")
-)
-
-graf.educacion <- ggsurvplot(
-  fit.educacion,
-  data = datos,
-  pval = TRUE,
-  title = "Educación",
-  legend.labs = c("Postsecundaria", "Primaria o menos", "Secundaria")
-)
-
-graf.religion <- ggsurvplot(
-  fit.religion,
-  data = datos,
-  pval = TRUE,
-  title = "Religión",
-  legend.labs = c("Católica", "No creyente", "Otra")
-)
-
-graf.zona <- ggsurvplot(
-  fit.zona,
-  data = datos,
-  pval = TRUE,
-  title = "Zona",
-  legend.labs = c("Rural", "Urbana")
-)
-
-arrange_ggsurvplots(
-  list(
-    graf.sexo,
-    graf.educacion,
-    graf.religion,
-    graf.zona
+resumen_extremos <- data.frame(
+  Medida = c(
+    "Observaciones utilizadas por el modelo",
+    "Valores extremos",
+    "Porcentaje de valores extremos"
   ),
-  ncol = 2,
-  nrow = 2,
-  print = TRUE
+  Resultado = c(
+    length(res_dev),
+    nrow(tabla_extremos),
+    paste0(round(100 * nrow(tabla_extremos) / length(res_dev), 2), "%")
+  )
 )
+
+knitr::kable(resumen_extremos, align = c("l", "r"))
 ```
 
+Como se encontraron más de 10 valores extremos, se presentan los 10 casos con el mayor valor absoluto del residuo de deviancia.
 
 ```{r}
-datos <- datos |>
-  tidyr::drop_na(ednivel_cat) |>
-  mutate(ednivel_cat = factor(ednivel_cat))
-
-pairwise_survdiff(
-  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
-  data = datos,
-  p.adjust.method = "holm"
-)
+tabla_extremos |>
+  slice_head(n = 10) |>
+  transmute(
+    ID = id,
+    `Componente lineal` = round(componente_lineal, 3),
+    `Residuo de deviancia` = round(residuo_deviancia, 3),
+    Educacion = educacion,
+    Cohorte = cohorte,
+    `Edad a la union o censura` = round(tiempo_union, 2),
+    Evento = evento
+  ) |>
+  knitr::kable(align = c("r", "r", "r", "l", "r", "r", "r"))
 ```
 
 ::: {.callout-tip}
+
 ## Interpretación
 
-De acuerdo con las pruebas log-rank, con una significancia del 5 %:
+- Se encontraron 112 valores extremos de las 1525 observaciones utilizadas por el modelo, lo que representa aproximadamente un 7,34 % de los casos.
 
-$H_0: \text{Todos los grupos tienen la misma curva de supervivencia}$
+- Los residuos positivos indican que la primera unión ocurrió antes de lo esperado por el modelo, dadas las características de la persona. En la submuestra presentada, nueve casos tienen residuos positivos y experimentaron la primera unión a edades muy tempranas, aproximadamente entre los 9 y 14 años.
 
-$H_1: \text{Al menos uno de los grupos tiene una curva de supervivencia diferente}$
+- El caso con residuo negativo corresponde a una persona censurada a los 71 años. Esta persona permaneció sin experimentar una primera unión durante mucho más tiempo del esperado por el modelo.
 
-Para la zona no hay diferencias significativas respecto a las curvas de supervivencia (p = 0,83)
-
-Para el sexo sí existen diferencias significativas respecto a las curvas de supervivencia (p < 0,0001)
-
-Para religión no hay diferencias significativas respecto a las curvas de supervivencia (p = 0,084)
-
-Para educación sí existen diferencias significativas respecto a las curvas de supervivencia (p < 0,0001)
-
-Específicamente para educación existen diferencias en las curvas de supervivencia entre Primaria o menos y Postsecundaria (p< 0,0001) así como entre Secundaria y Postsecundaria (p< 0,0001). Entre Primaria o menos y Secundaria no existen diferencias significativas (p = 0,99)
+- Estos casos son extremos porque su experiencia observada difiere considerablemente de la predicha por el modelo. Esto no significa necesariamente que sean errores en la base de datos, sino que las variables incluidas en el modelo no explican adecuadamente su tiempo hasta la primera unión.
 
 :::
 
 
-### Por región
+# Ejercicio 5
+
+Con los residuos de Cox-Snell, analice la bondad de ajuste del modelo a los datos.  Si hay un mal ajuste, diga si los valores extremos encontrados en el punto anterior son los que están causando el mal ajuste (20 ptos.)
+
+## Residuos de Cox-Snell
+
+Los residuos de Cox-Snell no se obtienen directamente con `residuals()`. Siguiendo el procedimiento visto en clase, se calculan restando el residuo de martingala a la variable de evento:
+
+\[
+r_{Ci}=\delta_i-r_{Mi}
+\]
+
+Si el modelo tiene un buen ajuste, los residuos de Cox-Snell deben aproximarse a una distribución exponencial con parámetro 1.
 
 ```{r}
+martingala <- residuals(mod_rp_cox, type = "martingale")
+evento_modelo <- datos$evento[filas_modelo]
+cox_snell <- evento_modelo - martingala
 
-datos <- as.data.frame(datos) # Esto se hizo porque los labels da STATA daban problemas con el facet
-datos <- zap_labels(datos)
-datos <- zap_formats(datos)
-datos$sexo_cat <- as.factor(datos$sexo_cat)
-datos$ednivel_cat <- as.factor(datos$ednivel_cat)
-datos$religion_cat <- as.factor(datos$religion_cat)
-datos$zona_cat <- as.factor(datos$zona_cat)
-
-
-fit.sexo <- survfit(
-  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
-  data = datos
-)
-fit.educacion <- survfit(
-  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
-  data = datos
-)
-fit.religion <- survfit(
-  Surv(time = tiempo_union, event = evento) ~ religion_cat,
-  data = datos
-)
-fit.zona <- survfit(
-  Surv(time = tiempo_union, event = evento) ~ zona_cat,
-  data = datos
+hist(
+  cox_snell,
+  xlab = "Residuos de Cox-Snell",
+  ylab = "Frecuencia absoluta",
+  main = "Histograma de los residuos de Cox-Snell"
 )
 ```
 
+Para analizar la bondad de ajuste se comparan los residuos con los cuantiles de una distribución exponencial. Los puntos deberían seguir aproximadamente la línea central del QQPlot y permanecer dentro de las bandas de confianza.
 
 ```{r}
-graf.sexo <- ggsurvplot_facet(
-  fit.sexo,
-  data = datos,
-  facet.by = "region",
-  pval = TRUE,
-  title = "Sexo"
-)
-
-graf.educacion <- ggsurvplot_facet(
-  fit.educacion,
-  data = datos,
-  facet.by = "region",
-  pval = TRUE,
-  title = "Educación"
-)
-
-graf.religion <- ggsurvplot_facet(
-  fit.religion,
-  data = datos,
-  facet.by = "region",
-  pval = TRUE,
-  title = "Religión"
-)
-
-graf.zona <- ggsurvplot_facet(
-  fit.zona,
-  data = datos,
-  facet.by = "region",
-  pval = TRUE,
-  title = "Zona"
-)
-
-patchwork::wrap_plots(
-  graf.sexo,
-  graf.educacion,
-  graf.religion,
-  graf.zona,
-  ncol = 2
+car::qqPlot(
+  cox_snell,
+  distribution = "exp",
+  main = "QQPlot de los residuos de Cox-Snell",
+  xlab = "Cuantiles de la distribución exponencial",
+  ylab = "Residuos de Cox-Snell",
+  id = FALSE
 )
 ```
 
+## Comparación sin valores extremos
+
+Para determinar si los valores extremos encontrados en el ejercicio anterior explican el mal ajuste, se vuelve a estimar el modelo después de excluirlos y se comparan ambos QQPlots.
 
 ```{r}
-pairwise_survdiff(
-  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
-  data = datos[datos$region == "1", ]
+filas_extremas <- filas_modelo[abs(res_dev) > 2]
+datos_sin_extremos <- datos[-filas_extremas, ]
+
+mod_sin_extremos <- coxph(
+  Surv(tiempo_union, evento) ~ ednivel + religion_cat + sexo_cat,
+  data = datos_sin_extremos
 )
+
+martingala_sin <- residuals(mod_sin_extremos, type = "martingale")
+filas_modelo_sin <- as.integer(names(martingala_sin))
+evento_modelo_sin <- datos_sin_extremos$evento[filas_modelo_sin]
+cox_snell_sin <- evento_modelo_sin - martingala_sin
+
+par(mfrow = c(1, 2))
+
+car::qqPlot(
+  cox_snell,
+  distribution = "exp",
+  main = "Modelo original",
+  xlab = "Cuantiles exponenciales",
+  ylab = "Residuos de Cox-Snell",
+  id = FALSE
+)
+
+car::qqPlot(
+  cox_snell_sin,
+  distribution = "exp",
+  main = "Modelo sin valores extremos",
+  xlab = "Cuantiles exponenciales",
+  ylab = "Residuos de Cox-Snell",
+  id = FALSE
+)
+
+par(mfrow = c(1, 1))
 ```
 
 ::: {.callout-tip}
+
 ## Interpretación
 
-De acuerdo con las pruebas log-rank, con una significancia del 5 %:
+- En el modelo original, la mayor parte de los residuos sigue aproximadamente la línea central. Sin embargo, en la cola superior se observa una separación sistemática, por lo que el ajuste es razonable para los valores centrales, pero no es completamente satisfactorio para las observaciones con residuos altos.
 
-$H_0: \text{Todos los grupos tienen la misma curva de supervivencia} $
+- Después de excluir los 112 valores extremos y volver a estimar el modelo, la separación en la cola superior no desaparece; por el contrario, continúa siendo visible y algunos residuos se alejan todavía más de la línea central.
 
-$H_1: \text{Al menos uno de los grupos tiene una curva de supervivencia diferente}$
-
-Para la zona no hay diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana ni para la Pacífico Central (p = 0,59 ;p = 0,69)
-
-Para el sexo sí existen diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana y dentro de la Pacífico Central (p p < 0,0001 ;p = 0,0076).
-
-Para religión no hay diferencias significativas respecto a las curvas de supervivencia dentro la región Metropolitana ni dentro la Pacífico Central (p = 0,2 ;p = 0,41)
-
-En el caso de educación sí existen diferencias significativas respecto a las curvas de supervivencia para la región Metropolitana (p < 0,0001) pero no así para la región Pacífico Central (p = 0,69).
-
-Específicamente para educación en la región Metropolitana existen diferencias en las curvas de supervivencia entre Primaria o menos y Postsecundaria (p< 0,0001) así como entre Secundaria y Postsecundaria (p< 0,0001). Entre Primaria o menos y Secundaria no existen diferencias significativas (p = 0,72).
+- Por tanto, los valores extremos detectados en el ejercicio 4 no parecen ser la causa principal del problema de ajuste. La falta de ajuste puede estar relacionada con la especificación del modelo, con variables explicativas no incluidas o con el incumplimiento del supuesto de riesgos proporcionales detectado anteriormente para educación y sexo.
 
 :::
 
 
+# Ejercicio 6
 
-## Ejercicio 7
+Expanda el archivo de datos para definirlo en años-persona.  Con una regresión logística con efectos aleatorios, estime un modelo de riesgos proporcionales en tiempo discreto.  Haga un cuadro comparativo en el que compare los hazard ratios del modelo de Cox con los Odds Ratios del modelo logístico.  Escriba a la par de los mismos un asterisco si el coeficiente exponenciado es distinto de cero al 5% de significancia (o sea, si el pvalue es menor a 0.05).  Escriba un brevísimo párrafo que compare los resultados tanto descriptivos como inferenciales. (20 ptos.) 
 
-Para todas las pruebas se utiliza un nivel de significancia de $\alpha=0.05$.
+## Expansión del archivo en años-persona
 
-### Sexo
+Primero se conservan las mismas observaciones utilizadas por el modelo de Cox. Luego cada persona se repite una vez por cada año durante el cual estuvo expuesta al riesgo de experimentar la primera unión.
 
 ```{r}
-prueba.sexo <- survdiff(
-  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
-  data = datos
+datos_modelo <- datos[filas_modelo, ]
+datos_modelo$id_panel <- seq_len(nrow(datos_modelo))
+datos_modelo$periodos <- pmax(
+  1L,
+  as.integer(ceiling(datos_modelo$tiempo_union))
 )
-prueba.sexo$pvalue
+
+datos_ap <- datos_modelo[
+  rep(seq_len(nrow(datos_modelo)), datos_modelo$periodos),
+]
+
+datos_ap$edad_final <- sequence(datos_modelo$periodos)
+datos_ap$edad_inicial <- datos_ap$edad_final - 1L
 ```
 
-**Hipótesis nula:** $H_0: S_{Hombre}(t)=S_{Mujer}(t) \Rightarrow h_{Hombre}(t)=h_{Mujer}(t)$.
-
-**Hipótesis alternativa:** $H_1: S_{Hombre}(t)\neq S_{Mujer}(t) \Rightarrow h_{Hombre}(t)\neq h_{Mujer}(t)$.
-
-**Interpretación:** Como el p-value es menor 0.0001, y por tanto, menor que 0,05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de que las curvas de supervivencia de la edad a la primera unión son diferentes entre hombres y mujeres considerando ambas regiones.
-
-### Educación
+En los años anteriores a la primera unión, la variable `evento_anual` es igual a 0. Para las personas que experimentaron el evento, toma el valor 1 únicamente en el último intervalo. Las personas censuradas mantienen el valor 0 durante todo el seguimiento.
 
 ```{r}
-prueba.educacion <- survdiff(
-  Surv(time = tiempo_union, event = evento) ~ ednivel_cat,
-  data = datos
+datos_ap$evento_anual <- as.integer(
+  datos_ap$evento == 1 &
+    datos_ap$edad_final == datos_ap$periodos
 )
-prueba.educacion$pvalue
-```
 
-**Hipótesis nula:** $H_0: S_{Primaria}(t)=S_{Secundaria}(t)=S_{Postsecundaria}(t) \Rightarrow h_{Primaria}(t)=h_{Secundaria}(t)=h_{Postsecundaria}(t)$.
-
-**Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
-
-**Interpretación:** Como el p-value es menor que 0,001, y por tanto menor que 0,05, se rechaza la hipótesis nula. Hay evidencia estadísticamente significativa de diferencias entre las curvas según el nivel educativo considerando ambas regiones.
-
-### Religión
-
-```{r}
-prueba.religion <- survdiff(
-  Surv(time = tiempo_union, event = evento) ~ religion_cat,
-  data = datos
+resumen_expansion <- data.frame(
+  Medida = c(
+    "Personas",
+    "Registros año-persona",
+    "Eventos en la base original",
+    "Eventos en la base expandida"
+  ),
+  Resultado = c(
+    nrow(datos_modelo),
+    nrow(datos_ap),
+    sum(datos_modelo$evento),
+    sum(datos_ap$evento_anual)
+  )
 )
-prueba.religion$pvalue
+
+knitr::kable(resumen_expansion, align = c("l", "r"))
 ```
 
-**Hipótesis nula:** $H_0: S_{Católica}(t)=S_{Otra}(t)=S_{NoCreyente}(t) \Rightarrow h_{Católica}(t)=h_{Otra}(t)=h_{NoCreyente}(t)$.
+La expansión genera 36410 registros año-persona y conserva los 892 eventos de la base original.
 
-**Hipótesis alternativa:** $H_1:$ al menos una $S_i(t)\neq S_j(t) \Rightarrow$ al menos una $h_i(t)\neq h_j(t)$.
+## Recodificación del tiempo
 
-**Interpretación:** Como el p-value es 0,0815, mayor que 0,05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas según la religión considerando ambas regiones.
-
-### Zona
+Siguiendo el procedimiento del profesor, el tiempo se incorpora como factor para permitir que el riesgo basal cambie entre grupos de edades. Las edades con pocos eventos se agrupan para evitar estimaciones inestables: 14 años o menos, intervalos quinquenales entre 15 y 39 años, y 40 años o más.
 
 ```{r}
-prueba.zona <- survdiff(
-  Surv(time = tiempo_union, event = evento) ~ zona_cat,
-  data = datos
+datos_ap <- datos_ap |>
+  mutate(
+    edad_tramo = cut(
+      edad_final,
+      breaks = c(-Inf, 14, 19, 24, 29, 34, 39, Inf),
+      labels = c(
+        "14 o menos", "15-19", "20-24", "25-29",
+        "30-34", "35-39", "40 o mas"
+      )
+    )
+  )
+
+tabla_tiempo <- datos_ap |>
+  group_by(edad_tramo) |>
+  summarise(
+    Registros_anio_persona = n(),
+    Eventos = sum(evento_anual),
+    .groups = "drop"
+  )
+
+knitr::kable(tabla_tiempo, align = c("l", "r", "r"))
+```
+
+## Modelo logístico con efectos aleatorios
+
+Se estima una regresión logística mixta. El intercepto aleatorio por persona toma en cuenta que los distintos años correspondientes a una misma persona no son observaciones independientes. Los coeficientes de educación, religión y sexo se mantienen constantes en el tiempo, mientras que `edad_tramo` representa el riesgo basal discreto.
+
+```{r}
+mod_logit <- lme4::glmer(
+  evento_anual ~ ednivel + religion_cat + sexo_cat + edad_tramo +
+    (1 | id_panel),
+  family = binomial(link = "logit"),
+  data = datos_ap,
+  nAGQ = 0,
+  control = lme4::glmerControl(
+    optimizer = "bobyqa",
+    optCtrl = list(maxfun = 200000)
+  )
 )
-prueba.zona$pvalue
+
+summary(mod_logit)
 ```
 
-**Hipótesis nula:** $H_0: S_{Urbana}(t)=S_{Rural}(t) \Rightarrow h_{Urbana}(t)=h_{Rural}(t)$.
-
-**Hipótesis alternativa:** $H_1: S_{Urbana}(t)\neq S_{Rural}(t) \Rightarrow h_{Urbana}(t)\neq h_{Rural}(t)$.
-
-**Interpretación:** Como el p-value es 0.816, mayor que 0,05, no se rechaza la hipótesis nula. No hay evidencia estadísticamente significativa de diferencias entre las curvas de las zonas urbana y rural considerando ambas regiones.
-
-## Ejercicio 8
-
-En `survdiff()`, `rho = 0` corresponde a la prueba log-rank y `rho = 1` corresponde a la prueba Peto-Peto.
+## Comparación entre Cox y tiempo discreto
 
 ```{r}
-survdiff(
-  Surv(time = tiempo_union, event = evento) ~ sexo_cat,
-  data = datos,
-  rho = 1
-)$pvalue
+coef_cox <- summary(mod_rp_cox)$coefficients[1:4, , drop = FALSE]
+coef_logit <- summary(mod_logit)$coefficients[2:5, , drop = FALSE]
+
+agregar_asterisco <- function(valor, pvalor) {
+  paste0(
+    formatC(valor, format = "f", digits = 3),
+    ifelse(pvalor < 0.05, "*", "")
+  )
+}
+
+tabla_comparacion <- data.frame(
+  Covariable = c(
+    "Nivel educativo",
+    "No creyente vs. católica",
+    "Otra religión vs. católica",
+    "Mujer vs. hombre"
+  ),
+  `HR de Cox` = agregar_asterisco(
+    exp(coef_cox[, "coef"]),
+    coef_cox[, "Pr(>|z|)"]
+  ),
+  `OR logistico` = agregar_asterisco(
+    exp(coef_logit[, "Estimate"]),
+    coef_logit[, "Pr(>|z|)"]
+  ),
+  check.names = FALSE
+)
+
+knitr::kable(tabla_comparacion, align = c("l", "r", "r"))
 ```
 
+El asterisco indica un p-valor menor que 0,05. Técnicamente, la prueba establece si el coeficiente es distinto de 0, lo que equivale a determinar si el HR o el OR es distinto de 1.
 
-::: {.callout-note}
+::: {.callout-tip}
+
 ## Interpretación
 
- La prueba log-rank produce un p-value menor que 0,0001 y la prueba Peto-Peto un p-value menor que 0,0001. Ambos valores son menores que 0,05, por lo que con ambas pruebas se rechaza la hipótesis nula de igualdad entre las curvas de supervivencia de hombres y mujeres considerando ambas regiones. Por tanto, la prueba Peto-Peto conduce a la misma conclusión que la prueba log-rank, es decir, existen diferencias estadísticamente significativas por sexo en la edad a la primera unión conyugal considerando ambas regiones.
+- Ambos modelos presentan las mismas direcciones y conclusiones inferenciales. El nivel educativo tiene una asociación negativa y estadísticamente significativa con el riesgo de la primera unión: el HR de Cox es 0,989 y el OR del modelo logístico es 0,985.
 
+- Las categorías de religión no son estadísticamente significativas en ninguno de los dos modelos. Sus HR y OR son cercanos a 1.
 
+- Ser mujer está asociado con una mayor ocurrencia de la primera unión en ambos modelos. El modelo de Cox estima un HR de 1,427 y el modelo logístico un OR de 1,619; ambos resultados son estadísticamente significativos.
+
+- Los valores no tienen que ser idénticos porque Cox estima razones de hazards en tiempo continuo y la regresión logística estima razones de odds por intervalo anual. Aun así, la coincidencia en dirección y significancia muestra que las conclusiones sustantivas son consistentes entre ambas estrategias.
 
 :::
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
