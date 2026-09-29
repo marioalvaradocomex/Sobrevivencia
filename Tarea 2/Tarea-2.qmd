@@ -192,9 +192,14 @@ cox.zph(mod_rp_cox)
 
 - Para el nivel educativo, existe suficiente evidencia estadística para rechazar la hipótesis nula de que se cumple el supuesto de riesgos proporcionales. Es decir, según el nivel educativo del individuo, el riesgo de la primera unión cambia con el tiempo.
 
-- Con respecto al sexo, con un alfa de 0,05 , se rechaza la hipótesis nula de que el supuesto de riesgos proporcionales se cumple. Por tanto, 
+- Con respecto al sexo, con un alfa de 0,05 , se rechaza la hipótesis nula de que el supuesto de riesgos proporcionales se cumple. Por tanto, según el sexo del individuo, el riesgo de la primera unión cambia a lo largo del tiempo.
 
+- Los resultados de la prueba formal concuerdan con lo que se observó gráficamente en el ejercicio anterior. En los gráficos donde hubo líneas crecientes o decrecientes fue en los correspondientes a las variables en las que no se cumplió el supuesto de riesgos proporcionales (nivel educativo y sexo).
 :::
+
+```{r}
+
+```
 
 
 **a.** 
