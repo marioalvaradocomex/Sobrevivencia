@@ -81,17 +81,17 @@ summary(datos$tiempo_union)
 ```{r}
 datos <- datos |>
   mutate(
-    ednivel_cat = case_when(
+    ednivel_cat = factor(case_when(
       ednivel <= 10 ~ "Primaria o menos",
       ednivel <= 30 ~ "Secundaria",
       ednivel <= 50 ~ "Postsecundaria"
-    ),
+    )),
 
-    religion_cat = case_when(
+    religion_cat = factor(case_when(
       r209 == 1 ~ "Católica",
       r209 %in% c(2, 3, 4, 5, 7) ~ "Otra religión",
       r209 == 8 ~ "No creyente"
-    ),
+    )),
     sexo_cat = factor(
       r204,
       levels = c(1, 2),
@@ -116,7 +116,10 @@ so.1 <- Surv(time = datos$tiempo_union, event = datos$evento)
 ## Modelo de riesgos proporcionales de Cox
 
 ```{r}
-mod_rp_cox <- coxph(so.1 ~ ednivel + religion_cat + sexo_cat, data = datos)
+mod_rp_cox <- coxph(
+  so.1 ~ ednivel + religion_cat + sexo_cat,
+  data = datos
+)
 summary(mod_rp_cox)
 
 (0.9889 - 1) * 100 # ednivel
@@ -143,6 +146,33 @@ summary(mod_rp_cox)
 - Para las personas que pertenecen a **otra religión**, el hazard de la primera unión es 10,88 % mayor que para las personas que son creyentes. Lo anterior, manteniendo las demás variables constantes.
 :::
 
+# Ejercicio 2
+
+```{r}
+datos$No_creyente <- 1 * (datos$religion_cat == "No creyente")
+datos$Otra_reli <- 1 * (datos$religion_cat == "Otra religión")
+
+cox_2 <- coxph(
+  so.1 ~ ednivel + No_creyente + Otra_reli + sexo_cat,
+  data = datos
+)
+
+p_rp <- cox.zph(cox_2)
+ggcoxzph(p_rp)
+```
+
+
+::: {.callout-tip}
+
+## Interpretación
+
+- Con respecto al nivel educativo, no parece cumplirse el supuesto de riesgos proporcionales ya que se observa que la línea es más bien creciente y parece que conforme aumenta la edad, el riesgo de la primera unión cambia.
+
+- En lo que respecta a las personas **no** creyentes, sí parece cumplirse el supuesto de riesgos proporcionales ya que se observa que la línea sí es prácticamente horizontal y que conforme aumenta la edad, para estas personas el riesgo de la primera unión se mantiene constante. Lo mismo sucede para las personas que tienen una religión distinta a la católica.
+
+- Para las mujeres, el supuesto de riesgos proporcionales tampoco parece cumplirse. Se observa que la línea es decreciente en el tiempo, es decir, que conforme aumenta la edad de las mujeres, parece que el riesgo de la primera unión disminuye.
+
+:::
 
 
 ## Ejercicio 3
