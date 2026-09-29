@@ -168,19 +168,33 @@ ggcoxzph(p_rp)
 
 - Con respecto al nivel educativo, no parece cumplirse el supuesto de riesgos proporcionales ya que se observa que la línea es más bien creciente y parece que conforme aumenta la edad, el riesgo de la primera unión cambia.
 
-- En lo que respecta a las personas **no** creyentes, sí parece cumplirse el supuesto de riesgos proporcionales ya que se observa que la línea sí es prácticamente horizontal y que conforme aumenta la edad, para estas personas el riesgo de la primera unión se mantiene constante. Lo mismo sucede para las personas que tienen una religión distinta a la católica.
+- En lo que respecta a las personas **no** creyentes, sí parece cumplirse el supuesto de riesgos proporcionales ya que se observa que la línea sí es prácticamente horizontal y que conforme aumenta la edad, para estas personas el riesgo de la primera unión se mantiene constante en comparación con los católicos. Lo mismo sucede para las personas que tienen una religión distinta a la católica.
 
 - Para las mujeres, el supuesto de riesgos proporcionales tampoco parece cumplirse. Se observa que la línea es decreciente en el tiempo, es decir, que conforme aumenta la edad de las mujeres, parece que el riesgo de la primera unión disminuye en comparación con los hombres.
 
 :::
 
-
 ## Ejercicio 3
 
 ```{r}
-summary(fit1)
-summary(fit2)
+cox.zph(cox_2)
+cox.zph(mod_rp_cox)
 ```
+
+
+::: {.callout-tip}
+
+## Interpretación
+
+- Para el modelo global, hay sufuciente evidencia estadística para rechazar la hipótesis nula de que para el modelo en su conjunto el supuesto de riesgos proporcionales se cumple. 
+
+- Para el factor de religión, **no** se rechaza la hipótesis nula de que el coeficiente de religión cambie en función del tiempo. Es decir se cumple el supuesto de riesgos proporcionales.
+
+- Para el nivel educativo, existe suficiente evidencia estadística para rechazar la hipótesis nula de que se cumple el supuesto de riesgos proporcionales. Es decir, según el nivel educativo del individuo, el riesgo de la primera unión cambia con el tiempo.
+
+- Con respecto al sexo, con un alfa de 0,05 , se rechaza la hipótesis nula de que el supuesto de riesgos proporcionales se cumple. Por tanto, 
+
+:::
 
 
 **a.** 
