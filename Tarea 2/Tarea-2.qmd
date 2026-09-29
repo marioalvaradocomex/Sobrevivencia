@@ -45,7 +45,7 @@ editor_options:
 
 ## Base de datos
 ```{r}
-pacman::p_load(haven, dplyr, survival, survminer, patchwork, splines)
+pacman::p_load(haven, dplyr, survival, survminer, patchwork, splines, car, lme4)
 
 datos <- read_dta("encfec2010.dta") |>
   filter(region == 1 | region == 8)
@@ -349,7 +349,7 @@ hist(
 Para analizar la bondad de ajuste se comparan los residuos con los cuantiles de una distribución exponencial. Los puntos deberían seguir aproximadamente la línea central del QQPlot y permanecer dentro de las bandas de confianza.
 
 ```{r}
-car::qqPlot(
+qqPlot(
   cox_snell,
   distribution = "exp",
   main = "QQPlot de los residuos de Cox-Snell",
@@ -379,7 +379,7 @@ cox_snell_sin <- evento_modelo_sin - martingala_sin
 
 par(mfrow = c(1, 2))
 
-car::qqPlot(
+qqPlot(
   cox_snell,
   distribution = "exp",
   main = "Modelo original",
@@ -388,7 +388,7 @@ car::qqPlot(
   id = FALSE
 )
 
-car::qqPlot(
+qqPlot(
   cox_snell_sin,
   distribution = "exp",
   main = "Modelo sin valores extremos",
@@ -467,7 +467,7 @@ La expansión genera 36410 registros año-persona y conserva los 892 eventos de 
 
 ## Recodificación del tiempo
 
-Siguiendo el procedimiento del profesor, el tiempo se incorpora como factor para permitir que el riesgo basal cambie entre grupos de edades. Las edades con pocos eventos se agrupan para evitar estimaciones inestables: 14 años o menos, intervalos quinquenales entre 15 y 39 años, y 40 años o más.
+El tiempo se incorpora como factor para permitir que el riesgo basal cambie entre grupos de edades. Las edades con pocos eventos se agrupan para evitar estimaciones inestables: 14 años o menos, intervalos quinquenales entre 15 y 39 años, y 40 años o más.
 
 ```{r}
 datos_ap <- datos_ap |>
@@ -476,8 +476,13 @@ datos_ap <- datos_ap |>
       edad_final,
       breaks = c(-Inf, 14, 19, 24, 29, 34, 39, Inf),
       labels = c(
-        "14 o menos", "15-19", "20-24", "25-29",
-        "30-34", "35-39", "40 o mas"
+        "14 o menos",
+        "15-19",
+        "20-24",
+        "25-29",
+        "30-34",
+        "35-39",
+        "40 o mas"
       )
     )
   )
@@ -485,7 +490,7 @@ datos_ap <- datos_ap |>
 tabla_tiempo <- datos_ap |>
   group_by(edad_tramo) |>
   summarise(
-    Registros_anio_persona = n(),
+    Registros_año_persona = n(),
     Eventos = sum(evento_anual),
     .groups = "drop"
   )
@@ -498,13 +503,16 @@ knitr::kable(tabla_tiempo, align = c("l", "r", "r"))
 Se estima una regresión logística mixta. El intercepto aleatorio por persona toma en cuenta que los distintos años correspondientes a una misma persona no son observaciones independientes. Los coeficientes de educación, religión y sexo se mantienen constantes en el tiempo, mientras que `edad_tramo` representa el riesgo basal discreto.
 
 ```{r}
-mod_logit <- lme4::glmer(
-  evento_anual ~ ednivel + religion_cat + sexo_cat + edad_tramo +
+mod_logit <- glmer(
+  evento_anual ~ ednivel +
+    religion_cat +
+    sexo_cat +
+    edad_tramo +
     (1 | id_panel),
   family = binomial(link = "logit"),
   data = datos_ap,
   nAGQ = 0,
-  control = lme4::glmerControl(
+  control = glmerControl(
     optimizer = "bobyqa",
     optCtrl = list(maxfun = 200000)
   )
@@ -555,11 +563,11 @@ El asterisco indica un p-valor menor que 0,05. Técnicamente, la prueba establec
 
 - Ambos modelos presentan las mismas direcciones y conclusiones inferenciales. El nivel educativo tiene una asociación negativa y estadísticamente significativa con el riesgo de la primera unión: el HR de Cox es 0,989 y el OR del modelo logístico es 0,985.
 
-- Las categorías de religión no son estadísticamente significativas en ninguno de los dos modelos. Sus HR y OR son cercanos a 1.
+- Las categorías de religión no son estadísticamente significativas en ninguno de los dos modelos. Sus intervalos de HR y OR incluyen el 1.
 
 - Ser mujer está asociado con una mayor ocurrencia de la primera unión en ambos modelos. El modelo de Cox estima un HR de 1,427 y el modelo logístico un OR de 1,619; ambos resultados son estadísticamente significativos.
 
-- Los valores no tienen que ser idénticos porque Cox estima razones de hazards en tiempo continuo y la regresión logística estima razones de odds por intervalo anual. Aun así, la coincidencia en dirección y significancia muestra que las conclusiones sustantivas son consistentes entre ambas estrategias.
+- Los valores no tienen que ser idénticos porque Cox estima razones de hazards en tiempo continuo y la regresión logística estima razones de odds por intervalo anual. Aún así, la coincidencia en dirección y significancia muestra que las conclusiones sustantivas son consistentes entre ambas estrategias.
 
 :::
 
