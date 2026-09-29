@@ -45,7 +45,7 @@ editor_options:
 
 ## Base de datos
 ```{r}
-pacman::p_load(haven, dplyr, survival, survminer, patchwork)
+pacman::p_load(haven, dplyr, survival, survminer, patchwork, splines)
 
 datos <- read_dta("encfec2010.dta") |>
   filter(region == 1 | region == 8)
@@ -198,7 +198,23 @@ cox.zph(mod_rp_cox)
 :::
 
 ```{r}
-
+cox_corregido <- coxph(
+  so.1 ~ ednivel +
+    No_creyente +
+    Otra_reli +
+    sexo_cat +
+    tt(sexo_cat) +
+    tt(ednivel),
+  tt = list(
+    function(x, t, ...) {
+      as.numeric(x) * t
+    },
+    function(x, t, ...) {
+      as.numeric(x) * nsk(t, knots = c(20, 25, 30))
+    }
+  ),
+  data = datos
+)
 ```
 
 
