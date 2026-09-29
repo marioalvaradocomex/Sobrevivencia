@@ -218,6 +218,18 @@ cox_corregido <- coxph(
 ```
 
 
+::: {.callout-note}
+
+## Nota
+
+- Para la variable sexo, se decide tomar la variable entera ya que la tendencia decreciente en el tiempo es muy marcada y a un ritmo constante.
+
+- Por su parte, para nivel educativo se decide usar nudos ya que en realidad la línea es más como una curva con un crecimiento a un ritmo que no es constante. Esto quiere decir que en realidad la tasa de cambio del riesgo no crece uniformemente si no que en algunas edad crece más rápido o más lento.
+
+:::
+
+
+
 **a.** 
 
 **La edad mediana de la primera unión es de aproximadamente 24 años para las personas de las regiones Metropolitana y Pacífico Central**
