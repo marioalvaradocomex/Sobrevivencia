@@ -170,7 +170,7 @@ ggcoxzph(p_rp)
 
 - En lo que respecta a las personas **no** creyentes, sí parece cumplirse el supuesto de riesgos proporcionales ya que se observa que la línea sí es prácticamente horizontal y que conforme aumenta la edad, para estas personas el riesgo de la primera unión se mantiene constante. Lo mismo sucede para las personas que tienen una religión distinta a la católica.
 
-- Para las mujeres, el supuesto de riesgos proporcionales tampoco parece cumplirse. Se observa que la línea es decreciente en el tiempo, es decir, que conforme aumenta la edad de las mujeres, parece que el riesgo de la primera unión disminuye.
+- Para las mujeres, el supuesto de riesgos proporcionales tampoco parece cumplirse. Se observa que la línea es decreciente en el tiempo, es decir, que conforme aumenta la edad de las mujeres, parece que el riesgo de la primera unión disminuye en comparación con los hombres.
 
 :::
 
