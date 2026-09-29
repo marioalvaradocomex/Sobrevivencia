@@ -134,7 +134,7 @@ summary(mod_rp_cox)
 
 - Por cada unidad adicional en el nivel educativo, el hazard de la primera unión disminuye en 1,11 %. Lo anterior, manteniendo las demás variables constantes.
 
-- Para las mujeres, el hazard de la primera unión es 42,69 % mayor que para los hombres. Lo anterior, manteniendo las demás variables constantes.
+- Para las mujeres, el hazard de la primera unión es 42,69 % mayor que para los hombres  . Lo anterior, manteniendo las demás variables constantes.
 
 **No significativos**
 
