@@ -161,7 +161,11 @@ La inclusión del valor inicial también requerirá considerar que los montos es
 
 <!-- Mínimo una página. Describir y justificar los métodos estadísticos que se utilizarán. -->
 
+$$
+\text{cloglog}(h_{ijt}) = \alpha_t + \gamma_y + \delta_j + \beta_1 TW_j \cdot RD_{año} + \beta_1^{CN} CN_j \cdot RD_{año} + \beta_2 TW_j \cdot TLC_{año} + \beta_2^{CN} CN_j \cdot TLC_{año} + \mathbf{x}_{ijt}'\boldsymbol{\lambda} + u_c + v_{i(c)}
+$$
 
+donde $h_{ijt}$ es el riesgo de interrupción del episodio exportador del producto $i$ hacia el destino $j$ en el año $t$, $\alpha_t$ es el riesgo base, $\gamma_y$ y $\delta_j$ son efectos fijos de año y destino, $\mathbf{x}_{ijt}$ son los otros países asiáticos. $u_c$ y $v_{i(c)}$ son los efectos aleatorios del capítulo y del producto. Los coeficientes $\beta_1$ y $\beta_1^{CN}$ corresponden al cambio en el riesgo de interrupción hacia Taiwán y China por el cambio diplomático, mientras que $\beta_2$ y $\beta_2^{CN}$ el cambio adicional por la entrada en vigor del TLC, en ambos casos en relación con los otros países asiáticos. $RD_{año}$ corresponde a 1 si el año es 2008 en adelante y 0 si el año es antes del 2008, esto indica la ruptura diplomática con Taiwán. $TLC_{año}$ corresponde a 1 si el año es 2010 en adelante y 0 si el año es antes del 2010, esto indica el TLC con China. $TW_j$ es 1 si el destino es Taiwán y 0 en otro caso. $CN_j$ es 1 si el 
 
 
 - Modelo base. Solo riesgo base, efectos fijos de año y destino, controles y efectos aleatorios. Sirve para documentar los hechos estilizados: el riesgo alto en el primer año y el efecto del valor inicial y de la diversificación.
