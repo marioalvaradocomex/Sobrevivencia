@@ -174,7 +174,7 @@ $$
 
 donde $h_{ijt}$ es el riesgo de interrupción del episodio exportador del producto $i$ hacia el destino $j$ en el año $t$, $\alpha_t$ es el riesgo base, $\gamma_y$ y $\delta_j$ son efectos fijos de año y destino, $\mathbf{x}_{ijt}$ son las variables de control y $lambda$ sus coeficientes respectivamente. $u_c$ y $v_{i(c)}$ son los efectos aleatorios del capítulo y del producto. Los coeficientes $\beta_1$ y $\beta_1^{CN}$ corresponden al cambio en el riesgo de interrupción hacia Taiwán y China por el cambio diplomático, mientras que $\beta_2$ y $\beta_2^{CN}$ el cambio adicional por la entrada en vigor del TLC, en ambos casos en relación con los otros países asiáticos. $RD_{año}$ corresponde a 1 si el año es 2008 en adelante y 0 si el año es antes del 2008, esto indica la ruptura diplomática con Taiwán. $TLC_{año}$ corresponde a 1 si el año es 2010 en adelante y 0 si el año es antes del 2010, esto indica el TLC con China. $TW_j$ es 1 si el destino es Taiwán y 0 en otro caso. $CN_j$ es 1 si el destino es China y 0 en otro caso. 
 
-Para comparar ambos modelos, se usaron los criterios del AIC y el BIC. Además, se compararon los signos y la significancia de los coeficientes obtenidos para cada uno.
+Para comparar ambos modelos, se calculó el Criterio de Información de Akaike $\left(AIC=2k-2ln\left(\widehat{L}\right)\right)\$ (Akaike,1974) y el Criterio de Información Bayesiano $\left(BIC=kln(n)-2ln\left(\widehat{L}\right)\right)$ donde $\widehat{L}$ es el valor máximo de la función de verosimilitud del modelo, $k$ el número de parámetros estimados y $n$ el número de observaciones episodio-año (Schwarz, 1978). Además, se compararon los signos y la significancia de los coeficientes obtenidos para cada uno.
 
 Todos los análisis estadísticos se realizaron mediante el software estadístico R 4.6.1(R Core Team, 2026) mediante la interfaz de desarrollo integrado Positron 2026.09.1(Posit team, 2026). Para todas las pruebas de hipótesis se utilizó un nivel de significancia del 5 %. Con respecto al análisis de supervivencia se utilizaron los paquetes: *survival*(Therneau T, 2026) para las curvas de Kaplan-Meier, prueba log-rank, modelo de Cox y el diagnóstico de riesgos proporcionales, *ggsurvfit*(Sjoberg D et al., 2026 ) para los gráficos de Kaplan-Meier,  y los paquetes *glmmTMB*(Mollie E. Brooks et al., 2017),*lme4*(Douglas Bates et al., 2015) y  *pglm*(Croissant Y, 2026) para ajustar los modelos lineales generalizados mixtos con enlaces logit y/o cloglog. 
 
@@ -205,6 +205,7 @@ R Core Team (2026). _R: A Language and Environment for Statistical Computing_. R
 
 Sandoval Alvarado, C. (2018). *Análisis de duración de los flujos de bienes exportados en Costa Rica en el periodo 1998-2016* [Trabajo final de investigación aplicada de maestría, Universidad de Costa Rica].
 
+Schwarz, G. (1978). Estimating the Dimension of a Model. The Annals of Statistics, 6(2), 461–464. [http://www.jstor.org/stable/2958889](http://www.jstor.org/stable/2958889)
 
 Singer, J. D., & Willett, J. B. (2003). Applied longitudinal data analysis: Modeling change and event occurrence (1st ed.). Oxford Univ. Pr. [https://doi.org/10.1093/acprof:oso/9780195152968.001.0001](https://doi.org/10.1093/acprof:oso/9780195152968.001.0001)
 
