@@ -57,15 +57,6 @@ La comparación entre Taiwán y China busca determinar si la permanencia de los 
 
 Se utilizarán registros de la Promotora del Comercio Exterior de Costa Rica (PROCOMER, 2026), con información anual por subpartida y destino, para el período 2000–2025. La unidad de interés será la relación exportadora entre un producto y cada mercado, no la empresa individual. Mediante técnicas de análisis de supervivencia se examinarán su duración y su riesgo de interrupción. El estudio tendrá un alcance observacional: identificará diferencias y asociaciones temporales, sin interpretar automáticamente una variación posterior a 2007 o al TLC como un efecto causal de esos acontecimientos.
 
-### Pregunta de investigación
-
-¿Cómo cambió la duración y el riesgo de interrupción de las exportaciones costarricenses hacia Taiwán y China tras el cambio de relaciones diplomáticas de 2007?
-
-### Preguntas específicas
-
-1. ¿Aumentó el riesgo de dejar de exportar hacia Taiwán después del cambio diplomático?
-2. ¿Disminuyó ese riesgo hacia China?
-3. ¿Se observan cambios adicionales después de la entrada en vigor del TLC con China?
 
 # Revisión de literatura
 
