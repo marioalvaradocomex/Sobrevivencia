@@ -199,6 +199,10 @@ R Core Team (2026). _R: A Language and Environment for Statistical Computing_. R
 
 Sandoval Alvarado, C. (2018). *Análisis de duración de los flujos de bienes exportados en Costa Rica en el periodo 1998-2016* [Trabajo final de investigación aplicada de maestría, Universidad de Costa Rica].
 
+
+Singer, J. D., & Willett, J. B. (2003). Applied longitudinal data analysis: Modeling change and event occurrence (1st ed.). Oxford Univ. Pr. [https://doi.org/10.1093/acprof:oso/9780195152968.001.0001](https://doi.org/10.1093/acprof:oso/9780195152968.001.0001)
+
+
 Türkcan, K., & Saygılı, H. (2018). Economic integration agreements and the survival of exports. *Journal of Economic Integration, 33*(1), 1046–1095. [https://doi.org/10.11130/jei.2018.33.1.1046](https://doi.org/10.11130/jei.2018.33.1.1046)
 
 Valverde Fallas, K. (2022). *Análisis de la duración de los flujos de exportación de Costa Rica a nivel de producto mediante modelos de sobrevivencia* [Trabajo final de investigación aplicada de maestría, Universidad de Costa Rica].
