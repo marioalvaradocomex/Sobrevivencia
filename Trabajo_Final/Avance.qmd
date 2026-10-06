@@ -162,18 +162,11 @@ La inclusión del valor inicial también requerirá considerar que los montos es
 <!-- Mínimo una página. Describir y justificar los métodos estadísticos que se utilizarán. -->
 
 
-- Tabla de vida (spells en riesgo, salidas y riesgo por t) para elegir el corte de t_cat.
-
-- Curvas de Kaplan-Meier por grupo de destino (Taiwán, China, controles) y por período (antes de 2008, de 2008 a 2011, desde 2012). Además de describir los datos, permiten revisar de forma visual si Taiwán y los controles se comportaban de manera parecida antes de 2008.
-
-- Conteo de spells y salidas por destino y período, para saber qué coeficientes serán estimables con precisión.
 
 
 - Modelo base. Solo riesgo base, efectos fijos de año y destino, controles y efectos aleatorios. Sirve para documentar los hechos estilizados: el riesgo alto en el primer año y el efecto del valor inicial y de la diversificación.
 
 - Enlace logit en lugar de cloglog.
-
-- Cox con fragilidad (coxme) como modelo alternativo.
 
 
 
@@ -192,6 +185,8 @@ Lawless, M., & Studnicka, Z. (2024). Old firms and new export flows: Does experi
 Ministerio de Comercio Exterior de Costa Rica. (s. f.). *Tratado de Libre Comercio entre el Gobierno de la República de Costa Rica y el Gobierno de la República Popular China*. Recuperado el 5 de octubre de 2026, de [COMEX: Tratado con China](https://www.comex.go.cr/tratados/china/)
 
 Nkansah, K., Takyi, P. O., Sakyi, D., & Adusah-Poku, F. (2022). Economic integration agreements and export survival in Ghana. *Journal of African Trade, 9*(1), 1–22. [https://doi.org/10.1007/s44232-022-00001-z](https://doi.org/10.1007/s44232-022-00001-z)
+
+Prentice, R. L., & Gloeckler, L. A. (1978). Regression Analysis of Grouped Survival Data with Application to Breast Cancer Data. Biometrics, 34(1), 57–67. [https://doi.org/10.2307/2529588](https://doi.org/10.2307/2529588)
 
 Posit team (2026). Positron: A next generation data science IDE. Posit Software, PBC, Boston, MA. URL [https://www.posit.co/](https://www.posit.co/) 
 
