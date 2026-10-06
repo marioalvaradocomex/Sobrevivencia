@@ -114,8 +114,6 @@ Evaluar los cambios en la duración y el riesgo de interrupción de las relacion
 - Determinar si la entrada en vigor del TLC con China se asocia con cambios adicionales en el riesgo de interrupción de las exportaciones hacia Taiwán y China, en relación con otros mercados asiáticos
 
 
-
-
 # Datos y métodos
 
 ## Datos
@@ -163,6 +161,7 @@ La inclusión del valor inicial también requerirá considerar que los montos es
 
 <!-- Mínimo una página. Describir y justificar los métodos estadísticos que se utilizarán. -->
 
+
 - Tabla de vida (spells en riesgo, salidas y riesgo por t) para elegir el corte de t_cat.
 
 - Curvas de Kaplan-Meier por grupo de destino (Taiwán, China, controles) y por período (antes de 2008, de 2008 a 2011, desde 2012). Además de describir los datos, permiten revisar de forma visual si Taiwán y los controles se comportaban de manera parecida antes de 2008.
@@ -192,7 +191,11 @@ Ministerio de Comercio Exterior de Costa Rica. (s. f.). *Tratado de Libre Comerc
 
 Nkansah, K., Takyi, P. O., Sakyi, D., & Adusah-Poku, F. (2022). Economic integration agreements and export survival in Ghana. *Journal of African Trade, 9*(1), 1–22. [https://doi.org/10.1007/s44232-022-00001-z](https://doi.org/10.1007/s44232-022-00001-z)
 
+Posit team (2026). Positron: A next generation data science IDE. Posit Software, PBC, Boston, MA. URL [https://www.posit.co/](https://www.posit.co/) 
+
 Promotora del Comercio Exterior de Costa Rica. (2026). *Portal estadístico* [Base de datos]. Recuperado el 5 de octubre de 2026, de [https://servicios.procomer.go.cr/PortalEstadistico/](https://servicios.procomer.go.cr/PortalEstadistico/)
+
+R Core Team (2026). _R: A Language and Environment for Statistical Computing_. R Foundation for Statistical Computing, Vienna, Austria. doi:10.32614/R.manuals <https://doi.org/10.32614/R.manuals>. <https://www.R-project.org/>.
 
 Sandoval Alvarado, C. (2018). *Análisis de duración de los flujos de bienes exportados en Costa Rica en el periodo 1998-2016* [Trabajo final de investigación aplicada de maestría, Universidad de Costa Rica].
 
