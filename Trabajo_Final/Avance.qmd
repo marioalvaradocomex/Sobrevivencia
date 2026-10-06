@@ -181,6 +181,8 @@ Todos los análisis estadísticos se realizaron mediante el software estadístic
 
 ## Bibliografía
 
+Akaike, H. (1974). A new look at the statistical model identification. IEEE Transactions on Automatic Control, 19(6), 716–723. [https://doi.org/10.1109/TAC.1974.1100705](https://doi.org/10.1109/TAC.1974.1100705)
+
 Brenton, P., Saborowski, C., & von Uexkull, E. (2010). What explains the low survival rate of developing country export flows? *The World Bank Economic Review, 24*(3), 474–499. [https://doi.org/10.1093/wber/lhq015](https://doi.org/10.1093/wber/lhq015)
 
 Esteban Rodríguez, M. (2013). ¿China o Taiwán?: Las paradojas de Costa Rica y Nicaragua (2006–2008). *Revista de Ciencia Política, 33*(2), 513–532. [https://doi.org/10.4067/S0718-090X2013000200005](https://doi.org/10.4067/S0718-090X2013000200005)
