@@ -36,6 +36,36 @@ Se utilizarán registros de la Promotora del Comercio Exterior de Costa Rica (PR
 
 <!-- Extensión libre. Incluir al menos cinco artículos sobre el tema desde un punto de vista sustantivo y un artículo metodológico adicional. -->
 
+### Supervivencia de las exportaciones y factores asociados
+
+La literatura sobre supervivencia exportadora estudia la continuidad de las relaciones comerciales, complementando el análisis de sus montos. Brenton et al. (2010) encuentran que los flujos bilaterales de productos presentan una elevada frecuencia de interrupciones, particularmente en países de bajos ingresos. Sus resultados destacan la importancia de la experiencia específica en productos y mercados para comprender la permanencia exportadora. Este enfoque permite distinguir entre iniciar una relación comercial y conseguir que se mantenga; ambas dimensiones son relevantes para interpretar el desempeño exportador.
+
+En este marco, interesa precisar qué relación se observa. La permanencia de un producto en un destino no equivale necesariamente a la supervivencia de una empresa: distintas firmas pueden exportar el mismo producto, y la salida de una de ellas puede quedar compensada por otras. Por tanto, con registros agregados por producto y destino, la interrupción se refiere al flujo comercial observado, no al cierre de una empresa ni al abandono de toda su actividad exportadora.
+
+La evidencia también advierte que la experiencia no tiene una interpretación única. Lawless y Studnicka (2024), con información de empresas irlandesas, encuentran que la asociación entre experiencia previa y supervivencia de nuevos flujos depende de su relación con la diversificación y la proximidad al producto principal de la firma. Su estudio muestra, además, una mayor permanencia de los flujos que comienzan con valores exportados más altos. Estos resultados motivan considerar la escala inicial y los antecedentes comerciales, sin suponer que cualquier medida de experiencia representa el mismo fenómeno. En particular, los reingresos de una relación producto–destino no permiten conocer la experiencia de las empresas que participan en ella.
+
+### Relaciones diplomáticas, acuerdos comerciales y continuidad exportadora
+
+El cambio diplomático y un acuerdo comercial son acontecimientos institucionales distintos. Para el caso estudiado, el primero corresponde al reconocimiento diplomático y a la reorientación de los vínculos oficiales; el segundo introduce un marco de compromisos comerciales. La documentación de COMEX (s. f.) permite identificar la entrada en vigor del TLC con China como un hito posterior al cambio de relaciones de 2007. Analíticamente, esta separación evita atribuir al cambio diplomático cualquier variación observada después del tratado. Asimismo, un aumento del monto exportado no demuestra por sí mismo una reducción del riesgo de interrupción: puede concentrarse en pocos productos mientras otros dejan de venderse.
+
+Türkcan y Saygılı (2018) estudian las exportaciones turcas de maquinaria durante 1998–2013 y encuentran diferencias en la supervivencia según el tipo de producto y el momento de inicio de la relación comercial. Los acuerdos favorecen la permanencia de relaciones que ya existían al entrar en vigor, mientras que los flujos iniciados posteriormente presentan una dinámica menos favorable. Además, los resultados difieren entre partes y componentes y bienes finales. Este antecedente sugiere distinguir la exposición a un acuerdo durante la trayectoria exportadora del hecho de haber comenzado a exportar después de su entrada en vigor.
+
+Por su parte, Nkansah et al. (2022) analizan las exportaciones de Ghana durante 1996–2018 y encuentran una asociación entre la pertenencia a la Comunidad Económica de Estados de África Occidental y un menor riesgo de interrupción. También identifican diferencias entre grupos de productos y especificaciones al examinar otros acuerdos. En conjunto, estos estudios justifican considerar el entorno comercial, pero no anticipar un resultado uniforme del TLC con China: sus hallazgos corresponden a países, mercados y productos diferentes de los de esta investigación.
+
+### Antecedentes para Costa Rica
+
+Sandoval Alvarado (2018) analiza flujos a nivel de empresa, producto y destino para 1999–2016. Encuentra una corta duración de las exportaciones y diferencias en el riesgo de interrupción según el régimen aduanero, el sector y el mercado de destino. Aunque identifica una asociación general entre los TLC y una mayor permanencia, sus resultados varían por régimen y acuerdo. Este antecedente advierte que las diferencias de composición pueden intervenir en las comparaciones comerciales. Sin embargo, la base disponible para el presente trabajo reúne todos los regímenes sin identificarlos por separado, de modo que no permite reproducir ese contraste.
+
+Valverde Fallas (2022) estudia la duración de los flujos costarricenses a nivel de producto durante 2007–2019. Sus resultados relacionan un mayor valor inicial exportado con un menor riesgo de interrupción, mientras que los antecedentes de interrupción y los períodos de inactividad se vinculan con mayor fragilidad. También encuentra diferencias entre los sectores agrícola e industrial y una asociación favorable de los TLC con la supervivencia. Este trabajo es especialmente cercano a la unidad de análisis propuesta y orienta la consideración de la escala inicial, el sector y la historia previa del flujo. No obstante, sus resultados proceden de una cobertura de destinos más amplia y no deben trasladarse automáticamente a la comparación entre Taiwán y China.
+
+Desde una perspectiva política, Esteban Rodríguez (2013) compara las decisiones de Costa Rica y Nicaragua frente a China y Taiwán, destacando la interacción de intereses económicos y políticos. Su análisis permite interpretar las expectativas que acompañaron el acercamiento costarricense a China, pero no estima la duración de las exportaciones. La conexión con el presente estudio consiste en examinar la continuidad de los flujos en el contexto de esa reorientación, sin confundir las expectativas que motivaron una decisión diplomática con sus resultados comerciales efectivamente observados.
+
+### Síntesis y aporte del estudio
+
+Los antecedentes revisados orientan la investigación hacia tres dimensiones: el contexto institucional, las características del producto y la trayectoria de la relación exportadora. Para el presente estudio, esto fundamenta considerar el destino y los períodos asociados al cambio diplomático y al TLC, junto con posibles variables de ajuste como el valor inicial exportado, el sector y los antecedentes observables de interrupción. La historia previa deberá distinguirse de la duración que se busca explicar, y la selección final de variables dependerá de su disponibilidad, su orden temporal y su pertinencia para las preguntas planteadas.
+
+El aporte propuesto no consiste en asumir que la supervivencia exportadora de Costa Rica carece de antecedentes, sino en concentrar el análisis en la comparación entre Taiwán y China durante 2000–2025, distinguiendo los dos hitos institucionales. Esta delimitación conecta la literatura sobre continuidad comercial con el contexto diplomático costarricense. Los resultados permitirán describir diferencias de permanencia y asociaciones con factores observados, manteniendo la cautela frente a cambios en la composición exportadora, acontecimientos simultáneos y características no disponibles en la base. La evidencia revisada orienta las variables que conviene evaluar, pero no permite atribuir de antemano un efecto causal al cambio de relaciones diplomáticas.
+
 ## Objetivos
 
 <!-- Formular los objetivos a partir de las preguntas de investigación una vez delimitado el alcance del estudio. -->
@@ -82,6 +112,16 @@ Esteban Rodríguez, M. (2013). ¿China o Taiwán?: Las paradojas de Costa Rica y
 
 Gobierno de la República de Costa Rica, & Gobierno de la República Popular China. (2007, 1 de junio). *Comunicado conjunto entre la República de Costa Rica y la República Popular China sobre el establecimiento de relaciones diplomáticas*. Ministerio de Relaciones Exteriores y Culto de Costa Rica. [Documento oficial](https://www.rree.go.cr/files/includes/files.php?id=2002&tipo=instrumento)
 
+Lawless, M., & Studnicka, Z. (2024). Old firms and new export flows: Does experience increase survival? *Open Economies Review, 35*, 215–243. [https://doi.org/10.1007/s11079-023-09727-4](https://doi.org/10.1007/s11079-023-09727-4)
+
 Ministerio de Comercio Exterior de Costa Rica. (s. f.). *Tratado de Libre Comercio entre el Gobierno de la República de Costa Rica y el Gobierno de la República Popular China*. Recuperado el 5 de octubre de 2026, de [COMEX: Tratado con China](https://www.comex.go.cr/tratados/china/)
 
+Nkansah, K., Takyi, P. O., Sakyi, D., & Adusah-Poku, F. (2022). Economic integration agreements and export survival in Ghana. *Journal of African Trade, 9*(1), 1–22. [https://doi.org/10.1007/s44232-022-00001-z](https://doi.org/10.1007/s44232-022-00001-z)
+
 Promotora del Comercio Exterior de Costa Rica. (2026). *Portal estadístico* [Base de datos]. Recuperado el 5 de octubre de 2026, de [https://servicios.procomer.go.cr/PortalEstadistico/](https://servicios.procomer.go.cr/PortalEstadistico/)
+
+Sandoval Alvarado, C. (2018). *Análisis de duración de los flujos de bienes exportados en Costa Rica en el periodo 1998-2016* [Trabajo final de investigación aplicada de maestría, Universidad de Costa Rica].
+
+Türkcan, K., & Saygılı, H. (2018). Economic integration agreements and the survival of exports. *Journal of Economic Integration, 33*(1), 1046–1095. [https://doi.org/10.11130/jei.2018.33.1.1046](https://doi.org/10.11130/jei.2018.33.1.1046)
+
+Valverde Fallas, K. (2022). *Análisis de la duración de los flujos de exportación de Costa Rica a nivel de producto mediante modelos de sobrevivencia* [Trabajo final de investigación aplicada de maestría, Universidad de Costa Rica].
