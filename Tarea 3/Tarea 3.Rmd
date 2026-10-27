@@ -1,5 +1,9 @@
 ---
 title: "SP-1637 Análisis de Supervivencia: Tarea 3"
+subtitle: "SP-1637 Análisis de Sobrevivencia — IIC-2026"
+author: 
+    - 'Gustavo Murillo'
+    - 'Mario Alvarado'
 output: html_document
 ---
 
@@ -13,13 +17,18 @@ library(dplyr)
 library(visreg)
 library(casebase)
 library(splines)
+
+
+
 ```
 
 
 
 ```{r}
 
-datos <- read_dta("data/encfec2010.dta")
+setwd("C:/Users/Mario.alvarado/OneDrive - Ministerio de Comercio Exterior/Aprendizaje/Estadistica/2.3 Analisis de Sobrevivencia/Sobrevivencia/data")
+
+datos <- read_dta("encfec2010.dta")
 datos <- datos |>
   mutate(
     r201b = as.numeric(na_if(r201b, 99)),
@@ -92,6 +101,8 @@ plot(
   )
 ```
 
+**La curva presenta una forma en la que aumenta al inicio y luego disminuye, como la forma de una campana con cierta inclinación hacia la izquierda, este comportamiento sugiera que la distribución podría ser una lognormal o una loglogística**
+
 ## Pregunta 2
 
 Estime varios modelos paramétricos con las distribuciones disponibles en R, y haga una tabla con los AICs correspondientes a cada modelo estimado. Incluya todas las predictoras que se vienen usando desde la tarea 1. Diga cuál es la distribución que mejor ajusta a sus hazards de acuerdo con el AIC, y diga si concuerda con su conclusión del punto 1 (10 ptos)
@@ -142,6 +153,8 @@ colnames(tabla.param) <- "AIC"
 tabla.param
 ```
 
+**Entre los modelos evaluados, la distribución loglogística presentó el menor AIC (12019.93), seguida de la lognormal (12170.07). Este resultado concuerda con lo observado en la pregunta 1**
+
 ## Pregunta 3
 
 Estime residuos de devianza, haga un gráfico de dispersión de los residuos de devianza contra las estimaciones lineales (el linear prediction). Compare este gráfico con un gráfico equivalente, pero con los residuos de deviancia estimadas con un modelo de Cox y conteste en cuál modelo se encuentran residuos de deviancia más extremos. (20 ptos.)
@@ -170,6 +183,37 @@ plot(res.dev.cox ~ xb.cox, xlab = "Prediccion lineal",
      ylab = "Res de Deviancia", ylim = c(-4, 4))
 abline(h = c(-2, 2), col = "green")
 ```
+
+```{r}
+tabla.residuos <- data.frame(
+  Modelo = c("Loglogística", "Cox"),
+  Menores_menos2 = c(
+    sum(res.dev.loglog < -2),
+    sum(res.dev.cox < -2)
+  ),
+  Mayores_2 = c(
+    sum(res.dev.loglog > 2),
+    sum(res.dev.cox > 2)
+  ),
+  Total_extremos = c(
+    sum(abs(res.dev.loglog) > 2),
+    sum(abs(res.dev.cox) > 2)
+  ),
+  Porcentaje_extremos = round(c(
+    mean(abs(res.dev.loglog) > 2) * 100,
+    mean(abs(res.dev.cox) > 2) * 100
+  ), 2),
+  Maxima_magnitud = round(c(
+    max(abs(res.dev.loglog)),
+    max(abs(res.dev.cox))
+  ), 3)
+)
+
+tabla.residuos
+```
+
+
+**Al hacer el análisis visual, pareciera que la loglogística tuviera más residuos de deviancia extremos, pero al ver los números y utilizando como referencia los límites −2 y 2, el modelo de Cox presenta una mayor cantidad de residuos de devianza extremos: 197 frente a 149 del modelo loglogístico. Sin embargo, la loglogística presenta más residuos extremos positivos y el residuo de mayor magnitud absoluta.**
 
 ## Pregunta 4
 
@@ -204,6 +248,8 @@ colnames(tabla.percentiles) <- c("Educacion", "Sexo", "Religion",
                                 "Percentil 25 (anos)", "Mediana (anos)")
 tabla.percentiles
 ```
+
+**Según el modelo loglogístico, para hombres de religión católica, las edades estimadas a la primera unión aumentan con el nivel educativo, tanto en el percentil 25 como en la mediana.**
 
 ## Pregunta 5
 
@@ -249,6 +295,8 @@ ggplot(data = nueva.haz, aes(x = tiempo, y = haz1, group = sexo_cat)) +
   ggtitle("Curvas de hazard: modelo loglogístico") +
   xlab("Edad a la primera unión (años)") + ylab("Hazard (por año)")
 ```
+
+**Las curvas de hazard estimadas con el modelo loglogístico para hombres y mujeres, manteniendo constantes la educación y la religión, presentan una forma similar a la observada en la pregunta 1, aumentan hasta alcanzar un máximo y luego disminuyen. Sin embargo, el descenso es más gradual y, en el rango de edades mostrado, no se aproximan tanto a cero como la curva suavizada. Por tanto, el modelo reproduce el patrón general, aunque difiere en la intensidad del descenso.**
 
 ## Pregunta 6
 
@@ -359,7 +407,8 @@ Con 999 réplicas y la semilla fijada, los intervalos teóricos y bootstrap pres
 | Logística | Los intervalos son similares, aunque para Otra religión el bootstrap es más estrecho. No cambia la conclusión respecto a la inclusión del 1. |
 | Loglogística | Los límites son muy cercanos para todos los coeficientes, incluido el intercepto. Por ejemplo, para Mujer frente a Hombre son aproximadamente [0.822, 0.866] con el método teórico y [0.823, 0.866] con bootstrap. |
 
-En el modelo loglogístico seleccionado, ambos métodos producen resultados muy parecidos y los intervalos de todas las predictoras excluyen el 1, equivalente a excluir el 0 en la escala de los coeficientes sin exponenciar. Esta concordancia respalda la estabilidad de la estimación de incertidumbre en esta muestra, pero no demuestra por sí sola que la distribución del modelo sea correcta. La comparación de amplitudes debe hacerse dentro de cada modelo, no entre modelos con diferentes escalas de interpretación. Los resultados bootstrap pueden variar ligeramente al cambiar la semilla o el número de réplicas.
+En el modelo loglogístico seleccionado, ambos métodos producen resultados muy parecidos y los intervalos de todas las predictoras excluyen el 1.
+
 
 ## Pregunta 7
 
