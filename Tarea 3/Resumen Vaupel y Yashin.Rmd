@@ -1,0 +1,121 @@
+---
+title: "Guía de lectura: Vaupel y Yashin (1985)"
+subtitle: "Heterogeneidad, selección y curvas de hazard"
+output: html_document
+---
+
+## 1. Qué estudia el artículo
+
+El artículo *Heterogeneity's Ruses: Some Surprising Effects of Selection on Population Dynamics*, de James W. Vaupel y Anatoli I. Yashin, explica cómo las diferencias entre individuos pueden generar patrones poblacionales que parecen contradictorios. El título puede entenderse como «Los engaños de la heterogeneidad»: no porque los datos sean falsos, sino porque podemos interpretar incorrectamente lo que muestran.
+
+Es un trabajo principalmente conceptual y matemático. Los autores construyen ejemplos con poblaciones formadas por grupos de distinto riesgo; no presentan un único estudio empírico que pruebe que todos los fenómenos descritos se deben a heterogeneidad.
+
+Aunque muchos ejemplos tratan de mortalidad, la lógica se aplica a cualquier tiempo hasta un evento: reincidencia, divorcio, encontrar empleo o fallas de equipos. En cada caso, «sobrevivir» significa seguir sin experimentar el evento estudiado (p. 176).
+
+## 2. Cuatro conceptos para entenderlo
+
+| Concepto | Explicación sencilla |
+|---|---|
+| Hazard | Tasa instantánea de ocurrencia del evento entre quienes todavía no lo han experimentado. No es una probabilidad acumulada. |
+| Heterogeneidad | Las personas no tienen todas el mismo riesgo. Algunas diferencias se observan y otras no están registradas. |
+| Selección de sobrevivientes | Quienes tienen mayor riesgo tienden a experimentar el evento antes. Por eso, quienes permanecen en riesgo dejan de representar la composición inicial. |
+| Riesgo individual y poblacional | El primero describe el riesgo de una persona o de un tipo de persona; el segundo resume el de quienes todavía están en riesgo, cuya composición cambia con el tiempo. |
+
+«Mayor fragilidad» significa mayor susceptibilidad al evento considerado; no necesariamente peor salud. La selección discutida aquí puede producirse por la ocurrencia del evento, incluso sin pérdidas de seguimiento: no debe confundirse con censura.
+
+## 3. El mecanismo central, paso a paso
+
+Imagina una cohorte con dos grupos: uno de alto riesgo y otro de bajo riesgo. Al inicio ambos están representados. Con el tiempo, el evento ocurre más rápidamente entre los integrantes del primer grupo. Entre quienes siguen sin experimentarlo, aumenta entonces el peso del grupo de bajo riesgo.
+
+**El hazard del conjunto puede disminuir sin que haya disminuido el hazard de ninguno de los dos grupos.** Lo que cambió fue la composición de quienes permanecen en riesgo, no necesariamente el comportamiento de cada individuo.
+
+Los autores expresan esta idea como un promedio ponderado (p. 176, ecuaciones 3 y 4). Con notación simplificada:
+
+$$
+h(t)=w(t)h_A(t)+[1-w(t)]h_B(t).
+$$
+
+Aquí $w(t)$ es la proporción del grupo A **entre quienes sobreviven hasta t**, no su proporción inicial. Si $p$ es la proporción inicial de A:
+
+$$
+w(t)=\frac{pS_A(t)}{pS_A(t)+(1-p)S_B(t)}.
+$$
+
+La clave es que esos pesos cambian conforme cada grupo experimenta el evento a una velocidad diferente.
+
+### Un ejemplo numérico
+
+Tomando los parámetros de la figura 1 del artículo, supongamos que el 80% inicial tiene un hazard constante de 0.06 y el 20% restante uno constante de 0.01, por unidad de tiempo. Los siguientes valores se calculan a partir de esas tasas, no son observaciones de una base real:
+
+| Tiempo | Porcentaje de alto riesgo entre los sobrevivientes | Hazard del conjunto |
+|---|---:|---:|
+| 0 | 80.0% | 0.0500 |
+| 25 | 53.4% | 0.0367 |
+| 50 | 24.7% | 0.0224 |
+
+Los hazards de los dos grupos siguen siendo 0.06 y 0.01. Sin embargo, el hazard poblacional baja porque el grupo de alto riesgo pesa cada vez menos entre los sobrevivientes. No sería correcto concluir que cada individuo redujo su riesgo de 0.05 a 0.0224 (pp. 176-177).
+
+## 4. Qué resultados sorprendentes presentan
+
+### Una curva compleja puede surgir de riesgos simples
+
+Las figuras 1 a 5 muestran curvas poblacionales que disminuyen, primero disminuyen y luego aumentan, o primero aumentan y luego disminuyen. Esos patrones pueden surgir de combinar grupos con trayectorias mucho más sencillas. Incluso un descenso poblacional puede coexistir con riesgos crecientes dentro de los grupos (pp. 177-179).
+
+### Un grupo inicialmente desfavorecido puede parecer aventajado después
+
+Dos poblaciones pueden presentar curvas de mortalidad que se cruzan. Una explicación posible es que la población con mayor mortalidad inicial haya perdido más rápidamente a sus integrantes más frágiles. Sus sobrevivientes resultan más seleccionados. Eso no prueba que pertenecer a la población inicialmente desfavorecida se vuelva protector con la edad; los autores también reconocen otras explicaciones posibles (p. 179).
+
+### Mejorar la supervivencia puede parecer un fracaso posterior
+
+Una intervención que evita muertes tempranas permite que más personas frágiles lleguen a edades avanzadas. Por ese cambio de composición, la mortalidad observada a esas edades podría aumentar, aunque la intervención no haya empeorado las posibilidades individuales. Evaluar únicamente esa tasa tardía puede ocultar el beneficio previo (pp. 181-182).
+
+### Los riesgos por distintas causas pueden relacionarse en el agregado
+
+Reducir las muertes por una causa puede cambiar quiénes permanecen expuestos a otras causas. El artículo muestra que esto puede modificar sus tasas observadas, aun bajo supuestos de independencia a nivel individual. No se trata solo de que finalmente haya más muertes por otra causa, sino de que puede cambiar el hazard observado de esa causa (p. 183).
+
+### La asignación aleatoria no congela la composición de los sobrevivientes
+
+Un tratamiento y un control pueden ser comparables al inicio, pero sus grupos de sobrevivientes pueden volverse diferentes si el tratamiento beneficia de manera distinta a distintos tipos de personas. Una diferencia de hazards que cambia con el tiempo no demuestra, por sí sola, que el efecto individual del tratamiento esté aumentando o disminuyendo. Esto no invalida la aleatorización: advierte sobre la interpretación de comparaciones condicionadas a haber sobrevivido (p. 184).
+
+El artículo también examina sistemas con componentes de respaldo: el hazard del sistema puede tener una trayectoria distinta de los hazards de sus componentes por los cambios en cuáles siguen funcionando. Es otra aplicación de la misma idea de composición cambiante (pp. 180-181).
+
+## 5. Qué proponen para el análisis estadístico
+
+Los autores explican cómo pueden plantearse modelos de mezcla para representar grupos de distinto riesgo, aunque no se observe directamente a qué grupo pertenece cada individuo. Ilustran la estimación por máxima verosimilitud de la proporción inicial de un grupo, utilizando tanto eventos observados como observaciones censuradas (p. 183).
+
+No proponen una corrección única que deba aplicarse a todo análisis. Su conclusión es que la selección puede importar mucho o poco según la población y las diferencias que queden sin medir. Recomiendan prestar atención a discrepancias entre la teoría sobre riesgos individuales y las curvas observadas; esas discrepancias son pistas de posible heterogeneidad, no pruebas concluyentes de ella (p. 184).
+
+## 6. Cómo se relaciona con nuestra tarea
+
+**Esta es una aplicación didáctica del mensaje del artículo, no un resultado que los autores hayan encontrado sobre nuestra encuesta.**
+
+En la tarea, sobrevivir significa permanecer sin la primera unión. Si algunas personas tienen mayor propensión a unirse tempranamente, salen antes del conjunto en riesgo. A edades mayores, quienes siguen sin unirse pueden concentrar características asociadas con una menor propensión a hacerlo.
+
+Por eso, si el hazard estimado primero aumenta y luego disminuye, no podemos asegurar que cada persona siga esa misma trayectoria individual: una parte del patrón podría deberse a heterogeneidad y selección. Educación, religión y sexo recogen algunas diferencias, pero no garantizan que todas las diferencias relevantes estén controladas.
+
+Elegir la loglogística por su AIC ayuda a comparar el ajuste entre los modelos considerados. **No demuestra por sí solo que la forma de su curva represente un mecanismo individual ni que hayamos explicado toda la heterogeneidad.** Esta advertencia tampoco demuestra que el modelo esté mal: delimita lo que podemos concluir.
+
+## 7. Moraleja y respuesta para recordar
+
+**La población que sigue en riesgo cambia con el tiempo. Por eso, que cambie su hazard no significa necesariamente que cambie de la misma manera el riesgo de cada individuo.**
+
+Antes de atribuir un descenso, un aumento o un cruce de curvas a cambios individuales o a una intervención, debemos preguntarnos: **¿cambió el riesgo de las personas, cambió quiénes permanecen en riesgo, o sucedieron ambas cosas?**
+
+## Guía para comprobarlo en el PDF
+
+La primera página del archivo es una portada de JSTOR. La página 176 del artículo corresponde a la página 2 del PDF.
+
+| Buscar en el artículo | Página impresa | Página del PDF |
+|---|---|---|
+| Mensaje central y promedio de hazards | 176 | 2 |
+| Ejemplo de dos hazards constantes, figura 1 | 177 | 3 |
+| Cruces de curvas | 179 | 5 |
+| Mejoras que aparentan fracasos | 181-183 | 7-9 |
+| Inferencia estadística | 183 | 9 |
+| Aleatorización y discusión final | 184 | 10 |
+
+## Referencia
+
+Vaupel, J. W., & Yashin, A. I. (1985). Heterogeneity's ruses: Some surprising effects of selection on population dynamics. *The American Statistician, 39*(3), 176-185.
+
+Fuente consultada: `Vaupel y Yashin.pdf`, disponible en esta misma carpeta. Este documento es un resumen explicativo, no una traducción literal del artículo.
