@@ -1,0 +1,432 @@
+---
+title: "Tarea 3"
+subtitle: "SP-1637 Análisis de Sobrevivencia — IIC-2026"
+author: 
+    - 'Gustavo Murillo'
+    - 'Mario Alvarado'
+date: today
+date-format: long 
+format:
+  pdf:
+   documentclass: article
+   papersize: letter
+   classoption: [fleqn]
+   geometry:
+     - top=2.5cm
+     - bottom=2.5cm
+     - left=2.5cm
+     - right=2.5cm
+   toc: true
+   toc-depth: 3
+   toc-title: "Contenidos"
+   number-sections: false
+   colorlinks: true
+   linkcolor: RoyalBlue
+   urlcolor: RoyalBlue
+   highlight-style: github
+   code-block-bg: "#f7f7f7"
+   code-block-border-left: "#cccccc"
+   code-overflow: wrap
+   fig-pos: "H"
+   fig-align: center
+   include-in-header:
+     text: |
+       \setlength{\mathindent}{0pt}
+execute: 
+  eval: true
+  message: false
+  warning: false
+lang: es
+editor_options: 
+  chunk_output_type: console
+---
+
+Utilice el archivo de encuesta de fecundidad que usó para la primera tarea. Use además las variables que creó: nivel de educación, religión y sexo. Puede usar zona pero no es obligatorio
+
+```{r}
+pacman::p_load(haven,dplyr,visreg,casebase,splines,ggplot2,survival,flexsurv,boot,boot.pval)
+```
+
+
+
+```{r}
+
+datos <- read_dta("data/encfec2010.dta")
+datos <- datos |>
+  mutate(
+    r201b = as.numeric(na_if(r201b, 99)),
+    r201c = as.numeric(na_if(r201c, 9999)),
+    r216m = if_else(r216m %in% c(98, 99), NA, as.numeric(r216m)),
+    r216a = if_else(r216a %in% c(9998, 9999), NA, as.numeric(r216a)),
+    evento = case_when(
+      r215 == 1 ~ 0,
+      r215 %in% c(2, 3) ~ 1
+    ),
+    tiempo_union = case_when(
+      evento == 0 ~ as.numeric(r202),
+      evento == 1 ~ ((r216a - r201c) * 12 + (r216m - r201b)) / 12
+    )
+  )
+```
+
+```{r}
+datos <- datos |>
+  mutate(
+    ednivel_cat = factor(case_when(
+      ednivel <= 10 ~ "Primaria o menos",
+      ednivel <= 30 ~ "Secundaria",
+      ednivel <= 50 ~ "Postsecundaria"
+    )),
+
+    religion_cat = factor(case_when(
+      r209 == 1 ~ "Católica",
+      r209 %in% c(2, 3, 4, 5, 7) ~ "Otra religión",
+      r209 == 8 ~ "No creyente"
+    )),
+    sexo_cat = factor(
+      r204,
+      levels = c(1, 2),
+      labels = c("Hombre", "Mujer")
+    ),
+    zona_cat = case_when(
+      zona == 1 ~ "Urbana",
+      zona == 2 ~ "Rural"
+    ),
+    ednivel = na_if(ednivel, 99)
+  )
+```
+
+
+Conteste las siguientes preguntas
+
+## Pregunta 1
+
+Haga un gráfico de la curva de hazards para la edad a la primera unión con la función fitSmoothHazard o la alternativa que vimos en clase y, a partir de la forma, argumente cuál sería la distribución paramétrica que ajusta mejor a la curva de hazards. (10 ptos)
+
+```{r pregunta-1}
+
+datos_hazard <- datos |>
+  filter(!is.na(evento), is.finite(tiempo_union), tiempo_union > 0)
+
+mod1 <- fitSmoothHazard(evento ~ ns(log(tiempo_union), df = 4),
+                        data = datos_hazard,
+                        time = "tiempo_union")
+
+plot(
+  mod1,
+  hazard.params = list(
+    xvar = "tiempo_union"
+  )
+) +
+  labs(
+    x = "Edad a la primera unión (años)",
+    y = "Curva de hazards"
+  )+
+    theme_classic()
+```
+
+**La curva presenta una forma en la que esta aumenta rápido al inicio y luego disminuye, como la forma de una campana con cierta asimetría positiva. Este comportamiento sugiere que la distribución podría ser una lognormal o una loglogística**
+
+## Pregunta 2
+
+Estime varios modelos paramétricos con las distribuciones disponibles en R, y haga una tabla con los AICs correspondientes a cada modelo estimado. Incluya todas las predictoras que se vienen usando desde la tarea 1. Diga cuál es la distribución que mejor ajusta a sus hazards de acuerdo con el AIC, y diga si concuerda con su conclusión del punto 1 (10 ptos)
+
+```{r pregunta-2}
+
+# Se utiliza la misma muestra en todos los modelos para comparar los AIC.
+datos_modelos <- datos |>
+  filter(!is.na(evento), is.finite(tiempo_union), tiempo_union > 0,
+         !is.na(ednivel_cat), !is.na(religion_cat), !is.na(sexo_cat))
+
+surv1 <- Surv(time = datos_modelos$tiempo_union,
+              event = datos_modelos$evento)
+
+weib.1 = survreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                 data = datos_modelos, dist = "weibull")
+
+exp.1 = survreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                data = datos_modelos, dist = "exponential")
+
+gauss.1 = survreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                  data = datos_modelos, dist = "gaussian")
+
+logn.1 = survreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                 data = datos_modelos, dist = "lognormal")
+
+logist.1 = survreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                   data = datos_modelos, dist = "logistic")
+
+loglog.1 = survreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                   data = datos_modelos, dist = "loglogistic")
+
+gomp.1 = flexsurvreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                     data = datos_modelos, dist = "gompertz")
+
+gamma.1 = flexsurvreg(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+                      data = datos_modelos, dist = "gamma")
+
+tabla.param <- rbind(AIC(weib.1), AIC(exp.1), AIC(gauss.1), AIC(logn.1),
+                     AIC(logist.1), AIC(loglog.1), AIC(gomp.1), AIC(gamma.1))
+
+rownames(tabla.param) <- c("Weibull", "Exponencial", "Gaussiana", "Lognormal",
+                          "Logística", "LogLogística", "Gompertz", "Gamma")
+colnames(tabla.param) <- "AIC"
+tabla.param
+```
+
+**Entre los modelos evaluados, la distribución loglogística presentó el menor AIC (12019,93), seguida de la lognormal (12170,07). Este resultado concuerda con lo observado en la pregunta 1**
+
+## Pregunta 3
+
+Estime residuos de devianza, haga un gráfico de dispersión de los residuos de devianza contra las estimaciones lineales (el linear prediction). Compare este gráfico con un gráfico equivalente, pero con los residuos de deviancia estimadas con un modelo de Cox y conteste en cuál modelo se encuentran residuos de deviancia más extremos. (20 ptos.)
+
+### Modelo loglogístico
+
+```{r pregunta-3-loglogistica}
+res.dev.loglog <- residuals(loglog.1, type = "deviance")
+xb.loglog <- predict(loglog.1, type = "lp")
+
+plot(res.dev.loglog ~ xb.loglog, xlab = "Prediccion lineal",
+     ylab = "Res de Deviancia", ylim = c(-4, 4))
+abline(h = c(-2, 2), col = "green")
+```
+
+### Modelo de Cox
+
+```{r pregunta-3-cox}
+cox.1 = coxph(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
+               data = datos_modelos)
+
+res.dev.cox <- residuals(cox.1, type = "deviance")
+xb.cox <- predict(cox.1, type = "lp")
+
+plot(res.dev.cox ~ xb.cox, xlab = "Predicción lineal",
+     ylab = "Res de Deviancia", ylim = c(-4, 4))
+abline(h = c(-2, 2), col = "green")
+```
+
+```{r}
+tabla.residuos <- data.frame(
+  Modelo = c("Loglogística", "Cox"),
+  Menores_menos2 = c(
+    sum(res.dev.loglog < -2),
+    sum(res.dev.cox < -2)
+  ),
+  Mayores_2 = c(
+    sum(res.dev.loglog > 2),
+    sum(res.dev.cox > 2)
+  ),
+  Total_extremos = c(
+    sum(abs(res.dev.loglog) > 2),
+    sum(abs(res.dev.cox) > 2)
+  ),
+  Porcentaje_extremos = round(c(
+    mean(abs(res.dev.loglog) > 2) * 100,
+    mean(abs(res.dev.cox) > 2) * 100
+  ), 2),
+  Maxima_magnitud = round(c(
+    max(abs(res.dev.loglog)),
+    max(abs(res.dev.cox))
+  ), 3)
+)
+
+tabla.residuos
+```
+
+
+**Al hacer el análisis visual, pareciera que la loglogística tuviera más residuos de deviancia extremos, sin embargo, utilizando como referencia los límites −2 y 2, el modelo de Cox presenta una mayor cantidad de residuos de devianza extremos: 197 frente a 149 del modelo loglogístico. No obstante, la loglogística presenta más residuos extremos positivos y el residuo de mayor magnitud absoluta.**
+
+## Pregunta 4
+
+Con el modelo paramétrico que escogió, estime el percentil 25 y la mediana de edad al uso del primer anticonceptivo, según niveles de educación, y escogiendo un valor fijo (se evaluará cómo lo escogió) para las demás variables predictoras. Haga un cuadro comparativo con dichos percentiles (20 ptos.)
+
+```{r pregunta-4}
+
+# Se fijan sexo y religión en sus categorías más frecuentes en la muestra analizada
+
+tabla.sexo <- table(datos_modelos$sexo_cat)
+tabla.religion <- table(datos_modelos$religion_cat)
+
+sexo_fijo <- names(tabla.sexo)[which.max(tabla.sexo)]
+religion_fija <- names(tabla.religion)[which.max(tabla.religion)]
+
+nueva <- data.frame(
+  ednivel_cat = factor(c("Primaria o menos", "Secundaria", "Postsecundaria"),
+                       levels = levels(datos_modelos$ednivel_cat)),
+  sexo_cat = factor(rep(sexo_fijo, 3),
+                    levels = levels(datos_modelos$sexo_cat)),
+  religion_cat = factor(rep(religion_fija, 3),
+                        levels = levels(datos_modelos$religion_cat))
+)
+
+y3 = predict(loglog.1, newdata = nueva, type = "quantile", p = c(0.5))
+y4 = predict(loglog.1, newdata = nueva, type = "quantile", p = c(0.25))
+
+tabla.percentiles <- cbind(nueva, round(cbind(y4, y3), 2))
+colnames(tabla.percentiles) <- c("Educación", "Sexo", "Religión",
+                                "Percentil 25(años)", "Mediana(años)")
+tabla.percentiles
+```
+
+**Según el modelo loglogístico, para hombres de religión católica, las edades estimadas a la primera unión aumentan con el nivel educativo, tanto en el percentil 25 como en la mediana.**
+
+## Pregunta 5
+
+Usando la ecuación estimada del modelo paramétrico preferido, haga un gráfico en el que compare las curvas de hazard por sexo manteniendo constante las demás variables. Diga si la forma de las curvas se parece a la estimada en el punto 1. (10 ptos.)
+
+```{r pregunta-5}
+
+tabla.educacion <- table(datos_modelos$ednivel_cat)
+tabla.religion <- table(datos_modelos$religion_cat)
+educacion_fija <- names(tabla.educacion)[which.max(tabla.educacion)]
+religion_fija <- names(tabla.religion)[which.max(tabla.religion)]
+
+
+tiempos <- seq(min(datos_modelos$tiempo_union),
+               max(datos_modelos$tiempo_union), length.out = 500)
+
+nueva.haz <- data.frame(
+  ednivel_cat = factor(rep(educacion_fija, 1000),
+                       levels = levels(datos_modelos$ednivel_cat)),
+  religion_cat = factor(rep(religion_fija, 1000),
+                        levels = levels(datos_modelos$religion_cat)),
+  sexo_cat = factor(rep(c("Hombre", "Mujer"), each = 500),
+                    levels = levels(datos_modelos$sexo_cat))
+)
+
+med.haz1 <- predict(loglog.1, newdata = nueva.haz, type = "link")
+nueva.haz$med.haz1 <- med.haz1
+nueva.haz$tiempo <- rep(tiempos, 2)
+
+# h(t) = f(t) / S(t); dividir entre t convierte la densidad de log(t) a la de t.
+nueva.haz$haz1 <- dlogis(log(nueva.haz$tiempo),
+                         location = nueva.haz$med.haz1, scale = loglog.1$scale) /
+  (nueva.haz$tiempo * plogis(log(nueva.haz$tiempo),
+                             location = nueva.haz$med.haz1,
+                             scale = loglog.1$scale, lower.tail = FALSE))
+
+ggplot(data = nueva.haz, aes(x = tiempo, y = haz1, group = sexo_cat)) +
+  geom_line(aes(color = sexo_cat)) +
+  scale_color_manual(name = "Sexo", values = c("Hombre" = "purple", "Mujer" = "green")) +
+  ggtitle("Curvas de hazard: modelo loglogístico") +
+  xlab("Edad a la primera unión(años)") + ylab("Hazard(por año)")+
+  theme_classic()
+```
+
+**Las curvas de hazard estimadas con el modelo loglogístico para hombres y mujeres, manteniendo constantes la educación y la religión, presentan una forma similar a la observada en la pregunta 1, aumentan hasta alcanzar un máximo y luego disminuyen. Sin embargo, el descenso es más gradual y, en el rango de edades mostrado, no se aproximan tanto a cero como la curva suavizada. Por tanto, el modelo reproduce el patrón general, aunque difiere en la intensidad del descenso.**
+
+## Pregunta 6
+
+Tome todos los modelos paramétricos que estimó en el punto 2 con la función survreg. Compare los intervalos de confianza “teóricos” (generados con cofint) con los intervalos de confianza no paramétricos de bootstrap para todos los coeficientes de cada modelo, y argumente cuán parecidos son (20 ptos). Si la distribución paramétrica escogida no se puede estimar con bootstrap, tiene permiso de escoger otra distribución paramétrica.
+
+```{r pregunta-6}
+set.seed(123)
+```
+
+Se comparan intervalos de confianza del 95% para todos los coeficientes de regresión, incluido el intercepto. Se utiliza bootstrap no paramétrico por remuestreo de individuos e intervalos percentiles. Siguiendo el laboratorio, ambas estimaciones se presentan en la escala exponenciada; no se interpretan como hazard ratios. El parámetro auxiliar de escala no forma parte de esta comparación de coeficientes de regresión.
+
+### Weibull
+
+```{r pregunta-6-weibull}
+weib.1 = update(weib.1,
+                formula = Surv(tiempo_union, evento) ~ ednivel_cat + religion_cat + sexo_cat,
+                data = datos_modelos, model = TRUE)
+
+weib.boot <- censboot_summary(weib.1, R = 999, pval_precision = 0.05)
+ic.weib <- cbind(exp(confint(weib.1)), weib.boot[, c(2, 3)])
+colnames(ic.weib) <- c("Teórico inferior", "Teórico superior",
+                      "Bootstrap inferior", "Bootstrap superior")
+round(ic.weib, 3)
+```
+
+### Exponencial
+
+```{r pregunta-6-exponencial}
+exp.1 = update(exp.1,
+               formula = Surv(tiempo_union, evento) ~ ednivel_cat + religion_cat + sexo_cat,
+               data = datos_modelos, model = TRUE)
+
+exp.boot <- censboot_summary(exp.1, R = 999, pval_precision = 0.05)
+ic.exp <- cbind(exp(confint(exp.1)), exp.boot[, c(2, 3)])
+colnames(ic.exp) <- c("Teórico inferior", "Teórico superior",
+                     "Bootstrap inferior", "Bootstrap superior")
+round(ic.exp, 3)
+```
+
+### Gaussiana
+
+```{r pregunta-6-gaussiana}
+gauss.1 = update(gauss.1,
+                 formula = Surv(tiempo_union, evento) ~ ednivel_cat + religion_cat + sexo_cat,
+                 data = datos_modelos, model = TRUE)
+
+gauss.boot <- censboot_summary(gauss.1, R = 999, pval_precision = 0.05)
+ic.gauss <- cbind(exp(confint(gauss.1)), gauss.boot[, c(2, 3)])
+colnames(ic.gauss) <- c("Teórico inferior", "Teórico superior",
+                       "Bootstrap inferior", "Bootstrap superior")
+round(ic.gauss, 3)
+```
+
+### Lognormal
+
+```{r pregunta-6-lognormal}
+logn.1 = update(logn.1,
+                formula = Surv(tiempo_union, evento) ~ ednivel_cat + religion_cat + sexo_cat,
+                data = datos_modelos, model = TRUE)
+
+logn.boot <- censboot_summary(logn.1, R = 999, pval_precision = 0.05)
+ic.logn <- cbind(exp(confint(logn.1)), logn.boot[, c(2, 3)])
+colnames(ic.logn) <- c("Teórico inferior", "Teórico superior",
+                      "Bootstrap inferior", "Bootstrap superior")
+round(ic.logn, 3)
+```
+
+### Logística
+
+```{r pregunta-6-logistica}
+logist.1 = update(logist.1,
+                  formula = Surv(tiempo_union, evento) ~ ednivel_cat + religion_cat + sexo_cat,
+                  data = datos_modelos, model = TRUE)
+
+logist.boot <- censboot_summary(logist.1, R = 999, pval_precision = 0.05)
+ic.logist <- cbind(exp(confint(logist.1)), logist.boot[, c(2, 3)])
+colnames(ic.logist) <- c("Teórico inferior", "Teórico superior",
+                        "Bootstrap inferior", "Bootstrap superior")
+round(ic.logist, 3)
+```
+
+### Loglogística
+
+```{r pregunta-6-loglogistica}
+loglog.1 = update(loglog.1,
+                  formula = Surv(tiempo_union, evento) ~ ednivel_cat + religion_cat + sexo_cat,
+                  data = datos_modelos, model = TRUE)
+
+loglog.boot <- censboot_summary(loglog.1, R = 999, pval_precision = 0.05)
+ic.loglog <- cbind(exp(confint(loglog.1)), loglog.boot[, c(2, 3)])
+colnames(ic.loglog) <- c("Teórico inferior", "Teórico superior",
+                        "Bootstrap inferior", "Bootstrap superior")
+round(ic.loglog, 3)
+```
+
+### Comparación
+
+Con 999 réplicas y la semilla fijada, los intervalos teóricos y bootstrap presentan la siguiente comparación:
+
+| Modelo | Comparación de los intervalos |
+|---|---|
+| Weibull | Los intervalos bootstrap son más amplios. Para No creyente frente a Católica, el intervalo teórico exponenciado es aproximadamente [0.852, 0.978], mientras que el bootstrap es [0.838, 1.001]. Por tanto, el primero excluye el 1 y el segundo lo incluye apenas; la conclusión sobre ese coeficiente es sensible al método. |
+| Exponencial | Los intervalos bootstrap son más estrechos, pero ambos métodos coinciden en cuáles coeficientes tienen intervalos que incluyen el 1. |
+| Gaussiana | Los intervalos tienen diferencias de amplitud, pero mantienen conclusiones coincidentes respecto a la inclusión del 1. Los valores grandes del intercepto corresponden a su exponenciación, no a edades estimadas. |
+| Lognormal | Los límites son muy cercanos y no cambia la conclusión sobre los coeficientes. |
+| Logística | Los intervalos son similares, aunque para Otra religión el bootstrap es más estrecho. No cambia la conclusión respecto a la inclusión del 1. |
+| Loglogística | Los límites son muy cercanos para todos los coeficientes, incluido el intercepto. Por ejemplo, para Mujer frente a Hombre son aproximadamente [0.822, 0.866] con el método teórico y [0.823, 0.866] con bootstrap. |
+
+En el modelo loglogístico seleccionado, ambos métodos producen resultados muy parecidos y los intervalos de todas las predictoras excluyen el 1.
+
+
+## Pregunta 7
+
+Cuál es el mensaje central del artículo de Yashin y Vaupel (10 ptos.).
+
+Vaupel y Yashin (1985) muestran que la heterogeneidad entre individuos y la selección de quienes permanecen en riesgo pueden producir curvas de hazard poblacionales muy distintas de las individuales. Quienes tienen mayor riesgo tienden a experimentar el evento antes, por lo que cambia la composición del grupo que sigue sin experimentarlo. Así, un hazard poblacional decreciente no implica necesariamente que el riesgo de cada persona disminuya. La idea central es no atribuir automáticamente los patrones agregados a cambios individuales o a efectos de una intervención sin considerar esta selección.

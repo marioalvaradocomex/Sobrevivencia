@@ -12,23 +12,16 @@ Se entrega el martes 27 de octubre a las 5:00pm en Mediación Virtual.
 Utilice el archivo de encuesta de fecundidad que usó para la primera tarea. Use además las variables que creó: nivel de educación, religión y sexo. Puede usar zona pero no es obligatorio
 
 ```{r}
-library(haven)
-library(dplyr)
-library(visreg)
-library(casebase)
-library(splines)
-
-
-
+pacman::p_load(haven,dplyr,visreg,casebase,splines,ggplot2,survival,flexsurv,boot,boot.pval)
 ```
 
 
 
 ```{r}
 
-setwd("C:/Users/Mario.alvarado/OneDrive - Ministerio de Comercio Exterior/Aprendizaje/Estadistica/2.3 Analisis de Sobrevivencia/Sobrevivencia/data")
+#setwd("C:/Users/Mario.alvarado/OneDrive - Ministerio de Comercio Exterior/Aprendizaje/Estadistica/2.3 Analisis de Sobrevivencia/Sobrevivencia/data")
 
-datos <- read_dta("encfec2010.dta")
+datos <- read_dta("data/encfec2010.dta")
 datos <- datos |>
   mutate(
     r201b = as.numeric(na_if(r201b, 99)),
@@ -95,22 +88,20 @@ plot(
     xvar = "tiempo_union"
   )
 ) +
-  ggplot2::labs(
+  labs(
     x = "Edad a la primera unión (años)",
     y = "Curva de hazards"
-  )
+  )+
+    theme_classic()
 ```
 
-**La curva presenta una forma en la que aumenta al inicio y luego disminuye, como la forma de una campana con cierta inclinación hacia la izquierda, este comportamiento sugiera que la distribución podría ser una lognormal o una loglogística**
+**La curva presenta una forma en la que esta aumenta rápido al inicio y luego disminuye, como la forma de una campana con cierta asimetría positiva. Este comportamiento sugiere que la distribución podría ser una lognormal o una loglogística**
 
 ## Pregunta 2
 
 Estime varios modelos paramétricos con las distribuciones disponibles en R, y haga una tabla con los AICs correspondientes a cada modelo estimado. Incluya todas las predictoras que se vienen usando desde la tarea 1. Diga cuál es la distribución que mejor ajusta a sus hazards de acuerdo con el AIC, y diga si concuerda con su conclusión del punto 1 (10 ptos)
 
 ```{r pregunta-2}
-
-library(survival)
-library(flexsurv)
 
 # Se utiliza la misma muestra en todos los modelos para comparar los AIC.
 datos_modelos <- datos |>
@@ -153,7 +144,7 @@ colnames(tabla.param) <- "AIC"
 tabla.param
 ```
 
-**Entre los modelos evaluados, la distribución loglogística presentó el menor AIC (12019.93), seguida de la lognormal (12170.07). Este resultado concuerda con lo observado en la pregunta 1**
+**Entre los modelos evaluados, la distribución loglogística presentó el menor AIC (12019,93), seguida de la lognormal (12170,07). Este resultado concuerda con lo observado en la pregunta 1**
 
 ## Pregunta 3
 
@@ -179,7 +170,7 @@ cox.1 = coxph(surv1 ~ ednivel_cat + religion_cat + sexo_cat,
 res.dev.cox <- residuals(cox.1, type = "deviance")
 xb.cox <- predict(cox.1, type = "lp")
 
-plot(res.dev.cox ~ xb.cox, xlab = "Prediccion lineal",
+plot(res.dev.cox ~ xb.cox, xlab = "Predicción lineal",
      ylab = "Res de Deviancia", ylim = c(-4, 4))
 abline(h = c(-2, 2), col = "green")
 ```
@@ -213,7 +204,7 @@ tabla.residuos
 ```
 
 
-**Al hacer el análisis visual, pareciera que la loglogística tuviera más residuos de deviancia extremos, pero al ver los números y utilizando como referencia los límites −2 y 2, el modelo de Cox presenta una mayor cantidad de residuos de devianza extremos: 197 frente a 149 del modelo loglogístico. Sin embargo, la loglogística presenta más residuos extremos positivos y el residuo de mayor magnitud absoluta.**
+**Al hacer el análisis visual, pareciera que la loglogística tuviera más residuos de deviancia extremos, sin embargo, utilizando como referencia los límites −2 y 2, el modelo de Cox presenta una mayor cantidad de residuos de devianza extremos: 197 frente a 149 del modelo loglogístico. No obstante, la loglogística presenta más residuos extremos positivos y el residuo de mayor magnitud absoluta.**
 
 ## Pregunta 4
 
@@ -221,11 +212,10 @@ Con el modelo paramétrico que escogió, estime el percentil 25 y la mediana de 
 
 ```{r pregunta-4}
 
-# Se fijan sexo y religion en sus categorias mas frecuentes en la muestra analizada.
+# Se fijan sexo y religión en sus categorías más frecuentes en la muestra analizada
+
 tabla.sexo <- table(datos_modelos$sexo_cat)
 tabla.religion <- table(datos_modelos$religion_cat)
-tabla.sexo
-tabla.religion
 
 sexo_fijo <- names(tabla.sexo)[which.max(tabla.sexo)]
 religion_fija <- names(tabla.religion)[which.max(tabla.religion)]
@@ -239,13 +229,12 @@ nueva <- data.frame(
                         levels = levels(datos_modelos$religion_cat))
 )
 
-# El modelo estima la edad a la primera union, no al primer anticonceptivo.
 y3 = predict(loglog.1, newdata = nueva, type = "quantile", p = c(0.5))
 y4 = predict(loglog.1, newdata = nueva, type = "quantile", p = c(0.25))
 
 tabla.percentiles <- cbind(nueva, round(cbind(y4, y3), 2))
-colnames(tabla.percentiles) <- c("Educacion", "Sexo", "Religion",
-                                "Percentil 25 (anos)", "Mediana (anos)")
+colnames(tabla.percentiles) <- c("Educación", "Sexo", "Religión",
+                                "Percentil 25(años)", "Mediana(años)")
 tabla.percentiles
 ```
 
@@ -257,14 +246,11 @@ Usando la ecuación estimada del modelo paramétrico preferido, haga un gráfico
 
 ```{r pregunta-5}
 
-library(ggplot2)
-
 tabla.educacion <- table(datos_modelos$ednivel_cat)
 tabla.religion <- table(datos_modelos$religion_cat)
 educacion_fija <- names(tabla.educacion)[which.max(tabla.educacion)]
 religion_fija <- names(tabla.religion)[which.max(tabla.religion)]
-educacion_fija
-religion_fija
+
 
 tiempos <- seq(min(datos_modelos$tiempo_union),
                max(datos_modelos$tiempo_union), length.out = 500)
@@ -293,7 +279,8 @@ ggplot(data = nueva.haz, aes(x = tiempo, y = haz1, group = sexo_cat)) +
   geom_line(aes(color = sexo_cat)) +
   scale_color_manual(name = "Sexo", values = c("Hombre" = "purple", "Mujer" = "green")) +
   ggtitle("Curvas de hazard: modelo loglogístico") +
-  xlab("Edad a la primera unión (años)") + ylab("Hazard (por año)")
+  xlab("Edad a la primera unión(años)") + ylab("Hazard(por año)")+
+  theme_classic()
 ```
 
 **Las curvas de hazard estimadas con el modelo loglogístico para hombres y mujeres, manteniendo constantes la educación y la religión, presentan una forma similar a la observada en la pregunta 1, aumentan hasta alcanzar un máximo y luego disminuyen. Sin embargo, el descenso es más gradual y, en el rango de edades mostrado, no se aproximan tanto a cero como la curva suavizada. Por tanto, el modelo reproduce el patrón general, aunque difiere en la intensidad del descenso.**
@@ -303,8 +290,6 @@ ggplot(data = nueva.haz, aes(x = tiempo, y = haz1, group = sexo_cat)) +
 Tome todos los modelos paramétricos que estimó en el punto 2 con la función survreg. Compare los intervalos de confianza “teóricos” (generados con cofint) con los intervalos de confianza no paramétricos de bootstrap para todos los coeficientes de cada modelo, y argumente cuán parecidos son (20 ptos). Si la distribución paramétrica escogida no se puede estimar con bootstrap, tiene permiso de escoger otra distribución paramétrica.
 
 ```{r pregunta-6}
-library(boot)
-library(boot.pval)
 set.seed(123)
 ```
 
@@ -319,7 +304,7 @@ weib.1 = update(weib.1,
 
 weib.boot <- censboot_summary(weib.1, R = 999, pval_precision = 0.05)
 ic.weib <- cbind(exp(confint(weib.1)), weib.boot[, c(2, 3)])
-colnames(ic.weib) <- c("Teorico inferior", "Teorico superior",
+colnames(ic.weib) <- c("Teórico inferior", "Teórico superior",
                       "Bootstrap inferior", "Bootstrap superior")
 round(ic.weib, 3)
 ```
@@ -333,7 +318,7 @@ exp.1 = update(exp.1,
 
 exp.boot <- censboot_summary(exp.1, R = 999, pval_precision = 0.05)
 ic.exp <- cbind(exp(confint(exp.1)), exp.boot[, c(2, 3)])
-colnames(ic.exp) <- c("Teorico inferior", "Teorico superior",
+colnames(ic.exp) <- c("Teórico inferior", "Teórico superior",
                      "Bootstrap inferior", "Bootstrap superior")
 round(ic.exp, 3)
 ```
@@ -347,7 +332,7 @@ gauss.1 = update(gauss.1,
 
 gauss.boot <- censboot_summary(gauss.1, R = 999, pval_precision = 0.05)
 ic.gauss <- cbind(exp(confint(gauss.1)), gauss.boot[, c(2, 3)])
-colnames(ic.gauss) <- c("Teorico inferior", "Teorico superior",
+colnames(ic.gauss) <- c("Teórico inferior", "Teórico superior",
                        "Bootstrap inferior", "Bootstrap superior")
 round(ic.gauss, 3)
 ```
@@ -361,7 +346,7 @@ logn.1 = update(logn.1,
 
 logn.boot <- censboot_summary(logn.1, R = 999, pval_precision = 0.05)
 ic.logn <- cbind(exp(confint(logn.1)), logn.boot[, c(2, 3)])
-colnames(ic.logn) <- c("Teorico inferior", "Teorico superior",
+colnames(ic.logn) <- c("Teórico inferior", "Teórico superior",
                       "Bootstrap inferior", "Bootstrap superior")
 round(ic.logn, 3)
 ```
@@ -375,7 +360,7 @@ logist.1 = update(logist.1,
 
 logist.boot <- censboot_summary(logist.1, R = 999, pval_precision = 0.05)
 ic.logist <- cbind(exp(confint(logist.1)), logist.boot[, c(2, 3)])
-colnames(ic.logist) <- c("Teorico inferior", "Teorico superior",
+colnames(ic.logist) <- c("Teórico inferior", "Teórico superior",
                         "Bootstrap inferior", "Bootstrap superior")
 round(ic.logist, 3)
 ```
@@ -389,7 +374,7 @@ loglog.1 = update(loglog.1,
 
 loglog.boot <- censboot_summary(loglog.1, R = 999, pval_precision = 0.05)
 ic.loglog <- cbind(exp(confint(loglog.1)), loglog.boot[, c(2, 3)])
-colnames(ic.loglog) <- c("Teorico inferior", "Teorico superior",
+colnames(ic.loglog) <- c("Teórico inferior", "Teórico superior",
                         "Bootstrap inferior", "Bootstrap superior")
 round(ic.loglog, 3)
 ```
@@ -414,7 +399,7 @@ En el modelo loglogístico seleccionado, ambos métodos producen resultados muy 
 
 Cuál es el mensaje central del artículo de Yashin y Vaupel (10 ptos.).
 
-Vaupel y Yashin (1985) muestran que la heterogeneidad entre individuos y la selección de quienes permanecen en riesgo pueden producir curvas de hazard poblacionales muy distintas de las individuales. Quienes tienen mayor riesgo tienden a experimentar el evento antes, por lo que cambia la composición del grupo que sigue sin experimentarlo. Así, un hazard poblacional decreciente no implica necesariamente que el riesgo de cada persona disminuya. La idea central es no atribuir automáticamente los patrones agregados a cambios individuales o a efectos de una intervención sin considerar esta selección (pp. 176-178, 184).
+Vaupel y Yashin (1985) muestran que la heterogeneidad entre individuos y la selección de quienes permanecen en riesgo pueden producir curvas de hazard poblacionales muy distintas de las individuales. Quienes tienen mayor riesgo tienden a experimentar el evento antes, por lo que cambia la composición del grupo que sigue sin experimentarlo. Así, un hazard poblacional decreciente no implica necesariamente que el riesgo de cada persona disminuya. La idea central es no atribuir automáticamente los patrones agregados a cambios individuales o a efectos de una intervención sin considerar esta selección.
 
 
 
