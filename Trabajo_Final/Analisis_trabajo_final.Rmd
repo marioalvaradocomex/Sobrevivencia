@@ -74,9 +74,7 @@ nombres_inconsistentes
 
 Estos controles detectan problemas de estructura, pero no prueban que los
 códigos arancelarios sean comparables entre todas las versiones del Sistema
-Armonizado. No se han aplicado correspondencias arancelarias. La descarga
-excluye registros sin sector asignado; la
-interpretación de esa exclusión sigue pendiente de documentación.
+Armonizado. No se han aplicado correspondencias arancelarias.
 
 ## 2. Grupos de comparación y calendario
 
@@ -87,6 +85,8 @@ Los períodos corresponden al documento: 2000-2007, 2008-2010 y 2011-2025.
 2011 es un año de exposición parcial al TLC, no el primer año completo.
 La descarga contiene varias etiquetas para Taiwán y Corea del Sur. Se
 normalizan por código ISO y se conserva `pais_original` para rastrear el cambio.
+
+<!-- Esta en discusión si agrupar las observaciones de otros países, actualmente no se agrupan. -->
 
 ```{r grupos}
 periodo_calendario <- function(anio) {
@@ -318,8 +318,11 @@ definitiva. El tratamiento de la dependencia se deja para la modelación.
 ```{r kaplan-meier}
 so.1 <- Surv(time = episodios$duracion, event = episodios$evento)
 # La respuesta dentro de la fórmula permite reconstruir los gráficos al tejer.
+
 km_destino <- survfit(Surv(duracion, evento) ~ grupo_destino, data = episodios)
+summary(km_destino)
 km_cohorte <- survfit(Surv(duracion, evento) ~ periodo_inicio, data = episodios)
+summary(km_cohorte)
 ggsurvplot(km_destino, data = episodios, conf.int = FALSE, pval = FALSE,
            xlab = "Años exportadores observados", ylab = "Supervivencia estimada")
 ggsurvplot(km_cohorte, data = episodios, conf.int = FALSE, pval = FALSE,
@@ -441,6 +444,9 @@ stopifnot(sum(base_param$evento) == sum(episodios$evento),
 
 ## 13. Regresión de Cox con contexto variable en el tiempo
 
+# TODO: Discutir con Gustavo la inclusión y especificación de los efectos
+# fijos de año y destino, y confirmar que coincide con la metodología acordada.
+
 La sintaxis reproduce el esquema del laboratorio de covariables temporales.
 Se añaden errores estándar robustos agrupados por relación producto–destino
 para reconocer los episodios repetidos. No equivalen a los efectos aleatorios
@@ -535,6 +541,9 @@ no demuestra que la distribución sea correcta. La corrección robusta cambia
 la incertidumbre, no convierte la verosimilitud en un modelo de dependencia.
 
 ## 15. Modelos binomiales mixtos en tiempo discreto
+
+# TODO: Discutir con Gustavo la inclusión y especificación de los efectos
+# fijos de año y destino, y confirmar que coincide con la metodología acordada.
 
 Como en el laboratorio, la respuesta es binaria por año y la duración se
 introduce como factor. Se agrupa la cola en 4–5, 6–10 y 11 o más años, conservando
