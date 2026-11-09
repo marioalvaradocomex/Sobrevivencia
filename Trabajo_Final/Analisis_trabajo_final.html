@@ -1687,7 +1687,7 @@ knitr::opts_knit$set(root.dir = directorio)</code></pre>
 <pre class="r"><code>setwd(directorio)
 load(&quot;comercio_asia.RData&quot;)
 
-# La descarga guarda el anio como integer64; bit64 permite convertirlo correctamente.
+# La descarga guarda el año como integer64; bit64 permite convertirlo correctamente.
 datos &lt;- comercio_asia
 datos$year &lt;- as.integer(datos$year)
 
@@ -1768,8 +1768,8 @@ el primer año completo. La descarga contiene varias etiquetas para
 Taiwán y Corea del Sur. Se normalizan por código ISO y se conserva
 <code>pais_original</code> para rastrear el cambio.</p>
 <!-- Esta en discusión si agrupar las observaciones de otros países, actualmente no se agrupan. -->
-<pre class="r"><code>periodo_calendario &lt;- function(anio) {
-  cut(anio, breaks = c(1999, 2007, 2010, 2025),
+<pre class="r"><code>periodo_calendario &lt;- function(año) {
+  cut(año, breaks = c(1999, 2007, 2010, 2025),
       labels = c(&quot;2000-2007&quot;, &quot;2008-2010&quot;, &quot;2011-2025&quot;))
 }
 
@@ -1850,7 +1850,7 @@ queda censurado.</p>
          evento_anual = as.integer(activo &amp; year &lt; 2025 &amp; !siguiente_activo)) %&gt;%
   ungroup()
 
-episodio_anio &lt;- panel_anual %&gt;% filter(activo) %&gt;%
+episodio_año &lt;- panel_anual %&gt;% filter(activo) %&gt;%
   mutate(id_episodio = paste(id_relacion, numero_episodio, sep = &quot;_&quot;)) %&gt;%
   group_by(id_episodio) %&gt;% arrange(year, .by_group = TRUE) %&gt;%
   mutate(edad_episodio = row_number(),
@@ -1861,30 +1861,30 @@ episodio_anio &lt;- panel_anual %&gt;% filter(activo) %&gt;%
          valor_inicial = if_else(inicio_desconocido, NA_real_, first(valor_USD))) %&gt;%
   ungroup()
 
-episodios &lt;- episodio_anio %&gt;%
+episodios &lt;- episodio_año %&gt;%
   group_by(id_episodio, id_relacion, iso_chr, pais, subpartida, sector_omc,
            grupo_destino, numero_episodio) %&gt;%
-  summarise(inicio_observado = min(year), ultimo_anio_activo = max(year),
+  summarise(inicio_observado = min(year), ultimo_año_activo = max(year),
             duracion = n(), evento = max(evento_anual),
             inicio_desconocido = first(inicio_desconocido),
             interrupcion_previa = first(interrupcion_previa),
             valor_primero_observado = first(valor_primero_observado),
             valor_inicial = first(valor_inicial), .groups = &quot;drop&quot;) %&gt;%
-  mutate(anio_interrupcion = if_else(evento == 1L, ultimo_anio_activo + 1L, NA_integer_),
-         anio_censura = if_else(evento == 0L, 2025L, NA_integer_),
+  mutate(año_interrupcion = if_else(evento == 1L, ultimo_año_activo + 1L, NA_integer_),
+         año_censura = if_else(evento == 0L, 2025L, NA_integer_),
          periodo_inicio = periodo_calendario(inicio_observado),
-         periodo_interrupcion = periodo_calendario(anio_interrupcion))
+         periodo_interrupcion = periodo_calendario(año_interrupcion))
 
-stopifnot(all(episodios$duracion == episodios$ultimo_anio_activo - episodios$inicio_observado + 1),
-          all(episodios$evento == as.integer(episodios$ultimo_anio_activo &lt; 2025)),
-          sum(episodios$duracion) == nrow(episodio_anio),
-          sum(episodios$evento) == sum(episodio_anio$evento_anual),
+stopifnot(all(episodios$duracion == episodios$ultimo_año_activo - episodios$inicio_observado + 1),
+          all(episodios$evento == as.integer(episodios$ultimo_año_activo &lt; 2025)),
+          sum(episodios$duracion) == nrow(episodio_año),
+          sum(episodios$evento) == sum(episodio_año$evento_anual),
           all(is.na(episodios$valor_inicial[episodios$inicio_desconocido])))
 head(episodios %&gt;% select(id_episodio, inicio_observado,
-  ultimo_anio_activo, duracion, evento, anio_interrupcion, inicio_desconocido), 12)</code></pre>
+  ultimo_año_activo, duracion, evento, año_interrupcion, inicio_desconocido), 12)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["id_episodio"],"name":[1],"type":["chr"],"align":["left"]},{"label":["inicio_observado"],"name":[2],"type":["int"],"align":["right"]},{"label":["ultimo_anio_activo"],"name":[3],"type":["int"],"align":["right"]},{"label":["duracion"],"name":[4],"type":["int"],"align":["right"]},{"label":["evento"],"name":[5],"type":["int"],"align":["right"]},{"label":["anio_interrupcion"],"name":[6],"type":["int"],"align":["right"]},{"label":["inicio_desconocido"],"name":[7],"type":["lgl"],"align":["right"]}],"data":[{"1":"CHN_010619_1","2":"2017","3":"2017","4":"1","5":"1","6":"2018","7":"FALSE"},{"1":"CHN_010619_2","2":"2023","3":"2023","4":"1","5":"1","6":"2024","7":"FALSE"},{"1":"CHN_020120_1","2":"2019","3":"2019","4":"1","5":"1","6":"2020","7":"FALSE"},{"1":"CHN_020130_1","2":"2016","3":"2016","4":"1","5":"1","6":"2017","7":"FALSE"},{"1":"CHN_020130_2","2":"2018","3":"2019","4":"2","5":"1","6":"2020","7":"FALSE"},{"1":"CHN_020130_3","2":"2022","3":"2022","4":"1","5":"1","6":"2023","7":"FALSE"},{"1":"CHN_020220_1","2":"2014","3":"2025","4":"12","5":"0","6":"NA","7":"FALSE"},{"1":"CHN_020230_1","2":"2010","3":"2011","4":"2","5":"1","6":"2012","7":"FALSE"},{"1":"CHN_020230_2","2":"2013","3":"2025","4":"13","5":"0","6":"NA","7":"FALSE"},{"1":"CHN_020321_1","2":"2020","3":"2020","4":"1","5":"1","6":"2021","7":"FALSE"},{"1":"CHN_020322_1","2":"2020","3":"2022","4":"3","5":"1","6":"2023","7":"FALSE"},{"1":"CHN_020329_1","2":"2020","3":"2022","4":"3","5":"1","6":"2023","7":"FALSE"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["id_episodio"],"name":[1],"type":["chr"],"align":["left"]},{"label":["inicio_observado"],"name":[2],"type":["int"],"align":["right"]},{"label":["ultimo_año_activo"],"name":[3],"type":["int"],"align":["right"]},{"label":["duracion"],"name":[4],"type":["int"],"align":["right"]},{"label":["evento"],"name":[5],"type":["int"],"align":["right"]},{"label":["año_interrupcion"],"name":[6],"type":["int"],"align":["right"]},{"label":["inicio_desconocido"],"name":[7],"type":["lgl"],"align":["right"]}],"data":[{"1":"CHN_010619_1","2":"2017","3":"2017","4":"1","5":"1","6":"2018","7":"FALSE"},{"1":"CHN_010619_2","2":"2023","3":"2023","4":"1","5":"1","6":"2024","7":"FALSE"},{"1":"CHN_020120_1","2":"2019","3":"2019","4":"1","5":"1","6":"2020","7":"FALSE"},{"1":"CHN_020130_1","2":"2016","3":"2016","4":"1","5":"1","6":"2017","7":"FALSE"},{"1":"CHN_020130_2","2":"2018","3":"2019","4":"2","5":"1","6":"2020","7":"FALSE"},{"1":"CHN_020130_3","2":"2022","3":"2022","4":"1","5":"1","6":"2023","7":"FALSE"},{"1":"CHN_020220_1","2":"2014","3":"2025","4":"12","5":"0","6":"NA","7":"FALSE"},{"1":"CHN_020230_1","2":"2010","3":"2011","4":"2","5":"1","6":"2012","7":"FALSE"},{"1":"CHN_020230_2","2":"2013","3":"2025","4":"13","5":"0","6":"NA","7":"FALSE"},{"1":"CHN_020321_1","2":"2020","3":"2020","4":"1","5":"1","6":"2021","7":"FALSE"},{"1":"CHN_020322_1","2":"2020","3":"2022","4":"3","5":"1","6":"2023","7":"FALSE"},{"1":"CHN_020329_1","2":"2020","3":"2022","4":"3","5":"1","6":"2023","7":"FALSE"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 </div>
@@ -1900,11 +1900,11 @@ relaciones independientes.</p>
             episodios = n(), interrupciones = sum(evento), censuras = sum(evento == 0),
             inicios_desconocidos = sum(inicio_desconocido),
             reingresos = sum(interrupcion_previa),
-            anios_activos = sum(duracion), .groups = &quot;drop&quot;)
+            años_activos = sum(duracion), .groups = &quot;drop&quot;)
 resumen_destino</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["grupo_destino"],"name":[1],"type":["fct"],"align":["left"]},{"label":["productos"],"name":[2],"type":["int"],"align":["right"]},{"label":["relaciones"],"name":[3],"type":["int"],"align":["right"]},{"label":["episodios"],"name":[4],"type":["int"],"align":["right"]},{"label":["interrupciones"],"name":[5],"type":["int"],"align":["right"]},{"label":["censuras"],"name":[6],"type":["int"],"align":["right"]},{"label":["inicios_desconocidos"],"name":[7],"type":["int"],"align":["right"]},{"label":["reingresos"],"name":[8],"type":["int"],"align":["right"]},{"label":["anios_activos"],"name":[9],"type":["int"],"align":["right"]}],"data":[{"1":"Taiwan","2":"678","3":"678","4":"1071","5":"1003","6":"68","7":"42","8":"393","9":"1895"},{"1":"China","2":"1120","3":"1120","4":"2104","5":"1893","6":"211","7":"29","8":"984","9":"3904"},{"1":"Otros paises asiaticos","2":"1728","3":"4320","4":"7454","5":"6432","6":"1022","7":"206","8":"3134","9":"13126"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["grupo_destino"],"name":[1],"type":["fct"],"align":["left"]},{"label":["productos"],"name":[2],"type":["int"],"align":["right"]},{"label":["relaciones"],"name":[3],"type":["int"],"align":["right"]},{"label":["episodios"],"name":[4],"type":["int"],"align":["right"]},{"label":["interrupciones"],"name":[5],"type":["int"],"align":["right"]},{"label":["censuras"],"name":[6],"type":["int"],"align":["right"]},{"label":["inicios_desconocidos"],"name":[7],"type":["int"],"align":["right"]},{"label":["reingresos"],"name":[8],"type":["int"],"align":["right"]},{"label":["años_activos"],"name":[9],"type":["int"],"align":["right"]}],"data":[{"1":"Taiwan","2":"678","3":"678","4":"1071","5":"1003","6":"68","7":"42","8":"393","9":"1895"},{"1":"China","2":"1120","3":"1120","4":"2104","5":"1893","6":"211","7":"29","8":"984","9":"3904"},{"1":"Otros paises asiaticos","2":"1728","3":"4320","4":"7454","5":"6432","6":"1022","7":"206","8":"3134","9":"13126"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <pre class="r"><code>resumen_pais &lt;- episodios %&gt;% group_by(iso_chr, pais) %&gt;%
@@ -1932,15 +1932,15 @@ presentes se usa el año activo; las interrupciones se cuentan en el
 primer año sin exportaciones. Las censuras administrativas solo ocurren
 en 2025. Por ello estas columnas no forman una particion y los episodios
 presentes no deben sumarse entre períodos.</p>
-<pre class="r"><code>presentes &lt;- episodio_anio %&gt;% group_by(grupo_destino, periodo) %&gt;%
+<pre class="r"><code>presentes &lt;- episodio_año %&gt;% group_by(grupo_destino, periodo) %&gt;%
   summarise(episodios_presentes = n_distinct(id_episodio),
-            anios_activos = n(), .groups = &quot;drop&quot;)
+            años_activos = n(), .groups = &quot;drop&quot;)
 entradas &lt;- episodios %&gt;% count(grupo_destino, periodo = periodo_inicio,
                                name = &quot;inicios_observados&quot;)
 salidas &lt;- episodios %&gt;% filter(evento == 1) %&gt;%
   count(grupo_destino, periodo = periodo_interrupcion, name = &quot;interrupciones&quot;)
 censuras &lt;- episodios %&gt;% filter(evento == 0) %&gt;%
-  count(grupo_destino, periodo = periodo_calendario(anio_censura), name = &quot;censuras&quot;)
+  count(grupo_destino, periodo = periodo_calendario(año_censura), name = &quot;censuras&quot;)
 resumen_periodos &lt;- presentes %&gt;%
   left_join(entradas, by = c(&quot;grupo_destino&quot;, &quot;periodo&quot;)) %&gt;%
   left_join(salidas, by = c(&quot;grupo_destino&quot;, &quot;periodo&quot;)) %&gt;%
@@ -1949,7 +1949,7 @@ resumen_periodos &lt;- presentes %&gt;%
 resumen_periodos</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["grupo_destino"],"name":[1],"type":["fct"],"align":["left"]},{"label":["periodo"],"name":[2],"type":["fct"],"align":["left"]},{"label":["episodios_presentes"],"name":[3],"type":["int"],"align":["right"]},{"label":["anios_activos"],"name":[4],"type":["int"],"align":["right"]},{"label":["inicios_observados"],"name":[5],"type":["int"],"align":["right"]},{"label":["interrupciones"],"name":[6],"type":["int"],"align":["right"]},{"label":["censuras"],"name":[7],"type":["int"],"align":["right"]}],"data":[{"1":"Taiwan","2":"2000-2007","3":"244","4":"371","5":"244","6":"189","7":"0"},{"1":"Taiwan","2":"2008-2010","3":"200","4":"271","5":"170","6":"74","7":"0"},{"1":"Taiwan","2":"2011-2025","3":"690","4":"1253","5":"657","6":"740","7":"68"},{"1":"China","2":"2000-2007","3":"396","4":"630","5":"396","6":"276","7":"0"},{"1":"China","2":"2008-2010","3":"321","4":"435","5":"257","6":"217","7":"0"},{"1":"China","2":"2011-2025","3":"1528","4":"2839","5":"1451","6":"1400","7":"211"},{"1":"Otros paises asiaticos","2":"2000-2007","3":"1146","4":"1971","5":"1146","6":"833","7":"0"},{"1":"Otros paises asiaticos","2":"2008-2010","3":"960","4":"1355","5":"789","6":"552","7":"0"},{"1":"Otros paises asiaticos","2":"2011-2025","3":"5814","4":"9800","5":"5519","6":"5047","7":"1022"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["grupo_destino"],"name":[1],"type":["fct"],"align":["left"]},{"label":["periodo"],"name":[2],"type":["fct"],"align":["left"]},{"label":["episodios_presentes"],"name":[3],"type":["int"],"align":["right"]},{"label":["años_activos"],"name":[4],"type":["int"],"align":["right"]},{"label":["inicios_observados"],"name":[5],"type":["int"],"align":["right"]},{"label":["interrupciones"],"name":[6],"type":["int"],"align":["right"]},{"label":["censuras"],"name":[7],"type":["int"],"align":["right"]}],"data":[{"1":"Taiwan","2":"2000-2007","3":"244","4":"371","5":"244","6":"189","7":"0"},{"1":"Taiwan","2":"2008-2010","3":"200","4":"271","5":"170","6":"74","7":"0"},{"1":"Taiwan","2":"2011-2025","3":"690","4":"1253","5":"657","6":"740","7":"68"},{"1":"China","2":"2000-2007","3":"396","4":"630","5":"396","6":"276","7":"0"},{"1":"China","2":"2008-2010","3":"321","4":"435","5":"257","6":"217","7":"0"},{"1":"China","2":"2011-2025","3":"1528","4":"2839","5":"1451","6":"1400","7":"211"},{"1":"Otros paises asiaticos","2":"2000-2007","3":"1146","4":"1971","5":"1146","6":"833","7":"0"},{"1":"Otros paises asiaticos","2":"2008-2010","3":"960","4":"1355","5":"789","6":"552","7":"0"},{"1":"Otros paises asiaticos","2":"2011-2025","3":"5814","4":"9800","5":"5519","6":"5047","7":"1022"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <p>Para el riesgo bruto se observan transiciones desde un año exportador
@@ -1959,11 +1959,11 @@ transición al año siguiente, cuando se verifica continuidad o
 interrupción. La transición 2025-2026 no se incluye, pues 2026 queda
 fuera del estudio. No se interpreta la censura como evidencia de
 continuidad durante 2026.</p>
-<pre class="r"><code>transiciones &lt;- episodio_anio %&gt;% filter(year &lt; 2025) %&gt;%
-  mutate(anio_resultado = year + 1L,
-         periodo_resultado = periodo_calendario(anio_resultado),
-         RD_resultado = as.integer(anio_resultado &gt;= 2008),
-         TLC_resultado = as.integer(anio_resultado &gt;= 2011))
+<pre class="r"><code>transiciones &lt;- episodio_año %&gt;% filter(year &lt; 2025) %&gt;%
+  mutate(año_resultado = year + 1L,
+         periodo_resultado = periodo_calendario(año_resultado),
+         RD_resultado = as.integer(año_resultado &gt;= 2008),
+         TLC_resultado = as.integer(año_resultado &gt;= 2011))
 riesgo_bruto &lt;- transiciones %&gt;% group_by(grupo_destino, periodo_resultado) %&gt;%
   summarise(transiciones_observadas = n(), interrupciones = sum(evento_anual),
             riesgo = mean(evento_anual), .groups = &quot;drop&quot;)
@@ -1992,7 +1992,7 @@ observadas. Se incluyen, identificados, para esta exploración
 provisional. No se debe interpretar la curva conjunta como duración
 total desde el inicio real de todas las relaciones, hasta resolver la
 consulta al profesor.</p>
-<pre class="r"><code>tabla_vida &lt;- episodio_anio %&gt;% group_by(grupo_destino, edad_episodio) %&gt;%
+<pre class="r"><code>tabla_vida &lt;- episodio_año %&gt;% group_by(grupo_destino, edad_episodio) %&gt;%
   summarise(en_riesgo = n(), eventos = sum(evento_anual),
             censuras = sum(year == 2025), .groups = &quot;drop&quot;) %&gt;%
   group_by(grupo_destino) %&gt;% arrange(edad_episodio, .by_group = TRUE) %&gt;%
@@ -2006,7 +2006,7 @@ tabla_vida</code></pre>
 </div>
 <pre class="r"><code>ggplot(tabla_vida, aes(edad_episodio, riesgo_discreto, color = grupo_destino)) +
   geom_line() + geom_point() + theme_minimal() +
-  labs(x = &quot;Anios exportadores observados del episodio&quot;, y = &quot;Riesgo discreto (d/n)&quot;,
+  labs(x = &quot;años exportadores observados del episodio&quot;, y = &quot;Riesgo discreto (d/n)&quot;,
        color = &quot;Destino&quot;)</code></pre>
 <p><img src="data:image/png;base64,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" alt width="864" /></p>
 </div>
@@ -2201,7 +2201,7 @@ números absolutos resulta insuficiente.</p>
 identificadores y grupos.</li>
 <li><code>panel_anual</code>: historia completa, incluidos los años sin
 exportaciones.</li>
-<li><code>episodio_anio</code>: una fila por año activo de cada
+<li><code>episodio_año</code>: una fila por año activo de cada
 episodio.</li>
 <li><code>episodios</code>: una fila por episodio, con duración, evento
 y censura.</li>
@@ -2308,7 +2308,7 @@ diferencias fijas entre países.</p>
 <pre class="r"><code>sv2 &lt;- Surv(time = base_modelos$tiempo_inicial,
             time2 = base_modelos$tiempo_final,
             event = base_modelos$evento_anual)
-cox.1 &lt;- coxph(sv2 ~ iso_chr + factor(anio_resultado) +
+cox.1 &lt;- coxph(sv2 ~ iso_chr + factor(año_resultado) +
                 TW:RD_resultado + CN:RD_resultado +
                 TW:TLC_resultado + CN:TLC_resultado +
                 sector_omc + log_valor_observado + interrupcion_previa +
@@ -2317,7 +2317,7 @@ cox.1 &lt;- coxph(sv2 ~ iso_chr + factor(anio_resultado) +
               x = TRUE)
 summary(cox.1)</code></pre>
 <pre><code>## Call:
-## coxph(formula = sv2 ~ iso_chr + factor(anio_resultado) + TW:RD_resultado + 
+## coxph(formula = sv2 ~ iso_chr + factor(año_resultado) + TW:RD_resultado + 
 ##     CN:RD_resultado + TW:TLC_resultado + CN:TLC_resultado + sector_omc + 
 ##     log_valor_observado + interrupcion_previa + inicio_desconocido, 
 ##     data = base_modelos, ties = &quot;efron&quot;, x = TRUE, cluster = id_relacion)
@@ -2333,30 +2333,30 @@ summary(cox.1)</code></pre>
 ## iso_chrPAK                  0.320530  1.377858  0.097404  0.085658   3.742
 ## iso_chrSGP                 -0.071226  0.931251  0.046831  0.046417  -1.534
 ## iso_chrTWN                  0.091457  1.095770  0.085225  0.078238   1.169
-## factor(anio_resultado)2002  0.045635  1.046692  0.135762  0.122144   0.374
-## factor(anio_resultado)2003  0.257355  1.293504  0.141315  0.129283   1.991
-## factor(anio_resultado)2004 -0.064238  0.937781  0.154972  0.141730  -0.453
-## factor(anio_resultado)2005 -0.196956  0.821227  0.150367  0.137325  -1.434
-## factor(anio_resultado)2006  0.031095  1.031583  0.149267  0.134834   0.231
-## factor(anio_resultado)2007  0.087354  1.091283  0.148248  0.132685   0.658
-## factor(anio_resultado)2008 -0.120317  0.886640  0.152289  0.141446  -0.851
-## factor(anio_resultado)2009 -0.090760  0.913237  0.151189  0.141842  -0.640
-## factor(anio_resultado)2010  0.071921  1.074570  0.144956  0.131917   0.545
-## factor(anio_resultado)2011 -0.179932  0.835327  0.142518  0.131450  -1.369
-## factor(anio_resultado)2012  0.055205  1.056757  0.142051  0.132456   0.417
-## factor(anio_resultado)2013  0.024779  1.025089  0.141958  0.129665   0.191
-## factor(anio_resultado)2014 -0.008170  0.991864  0.143057  0.130404  -0.063
-## factor(anio_resultado)2015  0.240385  1.271739  0.140652  0.128142   1.876
-## factor(anio_resultado)2016 -0.062854  0.939081  0.147449  0.135863  -0.463
-## factor(anio_resultado)2017  0.174026  1.190087  0.142081  0.128905   1.350
-## factor(anio_resultado)2018  0.054660  1.056181  0.142605  0.130609   0.419
-## factor(anio_resultado)2019  0.111976  1.118486  0.141651  0.129305   0.866
-## factor(anio_resultado)2020 -0.025104  0.975208  0.142709  0.132669  -0.189
-## factor(anio_resultado)2021  0.127569  1.136064  0.142312  0.129627   0.984
-## factor(anio_resultado)2022  0.183341  1.201224  0.143367  0.129419   1.417
-## factor(anio_resultado)2023  0.080346  1.083661  0.142597  0.130627   0.615
-## factor(anio_resultado)2024 -0.018073  0.982090  0.144048  0.132649  -0.136
-## factor(anio_resultado)2025 -0.144294  0.865633  0.145339  0.134647  -1.072
+## factor(año_resultado)2002  0.045635  1.046692  0.135762  0.122144   0.374
+## factor(año_resultado)2003  0.257355  1.293504  0.141315  0.129283   1.991
+## factor(año_resultado)2004 -0.064238  0.937781  0.154972  0.141730  -0.453
+## factor(año_resultado)2005 -0.196956  0.821227  0.150367  0.137325  -1.434
+## factor(año_resultado)2006  0.031095  1.031583  0.149267  0.134834   0.231
+## factor(año_resultado)2007  0.087354  1.091283  0.148248  0.132685   0.658
+## factor(año_resultado)2008 -0.120317  0.886640  0.152289  0.141446  -0.851
+## factor(año_resultado)2009 -0.090760  0.913237  0.151189  0.141842  -0.640
+## factor(año_resultado)2010  0.071921  1.074570  0.144956  0.131917   0.545
+## factor(año_resultado)2011 -0.179932  0.835327  0.142518  0.131450  -1.369
+## factor(año_resultado)2012  0.055205  1.056757  0.142051  0.132456   0.417
+## factor(año_resultado)2013  0.024779  1.025089  0.141958  0.129665   0.191
+## factor(año_resultado)2014 -0.008170  0.991864  0.143057  0.130404  -0.063
+## factor(año_resultado)2015  0.240385  1.271739  0.140652  0.128142   1.876
+## factor(año_resultado)2016 -0.062854  0.939081  0.147449  0.135863  -0.463
+## factor(año_resultado)2017  0.174026  1.190087  0.142081  0.128905   1.350
+## factor(año_resultado)2018  0.054660  1.056181  0.142605  0.130609   0.419
+## factor(año_resultado)2019  0.111976  1.118486  0.141651  0.129305   0.866
+## factor(año_resultado)2020 -0.025104  0.975208  0.142709  0.132669  -0.189
+## factor(año_resultado)2021  0.127569  1.136064  0.142312  0.129627   0.984
+## factor(año_resultado)2022  0.183341  1.201224  0.143367  0.129419   1.417
+## factor(año_resultado)2023  0.080346  1.083661  0.142597  0.130627   0.615
+## factor(año_resultado)2024 -0.018073  0.982090  0.144048  0.132649  -0.136
+## factor(año_resultado)2025 -0.144294  0.865633  0.145339  0.134647  -1.072
 ## sector_omcIndustrial        0.117286  1.124441  0.035844  0.034530   3.397
 ## log_valor_observado        -0.082858  0.920482  0.003403  0.003172 -26.120
 ## interrupcion_previa        -0.305866  0.736486  0.022764  0.020875 -14.652
@@ -2374,30 +2374,30 @@ summary(cox.1)</code></pre>
 ## iso_chrPAK                 0.000183 ***
 ## iso_chrSGP                 0.124910    
 ## iso_chrTWN                 0.242419    
-## factor(anio_resultado)2002 0.708690    
-## factor(anio_resultado)2003 0.046522 *  
-## factor(anio_resultado)2004 0.650372    
-## factor(anio_resultado)2005 0.151506    
-## factor(anio_resultado)2006 0.817615    
-## factor(anio_resultado)2007 0.510309    
-## factor(anio_resultado)2008 0.394980    
-## factor(anio_resultado)2009 0.522257    
-## factor(anio_resultado)2010 0.585618    
-## factor(anio_resultado)2011 0.171054    
-## factor(anio_resultado)2012 0.676842    
-## factor(anio_resultado)2013 0.848448    
-## factor(anio_resultado)2014 0.950047    
-## factor(anio_resultado)2015 0.060666 .  
-## factor(anio_resultado)2016 0.643632    
-## factor(anio_resultado)2017 0.177004    
-## factor(anio_resultado)2018 0.675581    
-## factor(anio_resultado)2019 0.386498    
-## factor(anio_resultado)2020 0.849917    
-## factor(anio_resultado)2021 0.325054    
-## factor(anio_resultado)2022 0.156585    
-## factor(anio_resultado)2023 0.538505    
-## factor(anio_resultado)2024 0.891627    
-## factor(anio_resultado)2025 0.283877    
+## factor(año_resultado)2002 0.708690    
+## factor(año_resultado)2003 0.046522 *  
+## factor(año_resultado)2004 0.650372    
+## factor(año_resultado)2005 0.151506    
+## factor(año_resultado)2006 0.817615    
+## factor(año_resultado)2007 0.510309    
+## factor(año_resultado)2008 0.394980    
+## factor(año_resultado)2009 0.522257    
+## factor(año_resultado)2010 0.585618    
+## factor(año_resultado)2011 0.171054    
+## factor(año_resultado)2012 0.676842    
+## factor(año_resultado)2013 0.848448    
+## factor(año_resultado)2014 0.950047    
+## factor(año_resultado)2015 0.060666 .  
+## factor(año_resultado)2016 0.643632    
+## factor(año_resultado)2017 0.177004    
+## factor(año_resultado)2018 0.675581    
+## factor(año_resultado)2019 0.386498    
+## factor(año_resultado)2020 0.849917    
+## factor(año_resultado)2021 0.325054    
+## factor(año_resultado)2022 0.156585    
+## factor(año_resultado)2023 0.538505    
+## factor(año_resultado)2024 0.891627    
+## factor(año_resultado)2025 0.283877    
 ## sector_omcIndustrial       0.000682 ***
 ## log_valor_observado         &lt; 2e-16 ***
 ## interrupcion_previa         &lt; 2e-16 ***
@@ -2418,30 +2418,30 @@ summary(cox.1)</code></pre>
 ## iso_chrPAK                    1.3779     0.7258    1.1649    1.6297
 ## iso_chrSGP                    0.9313     1.0738    0.8503    1.0199
 ## iso_chrTWN                    1.0958     0.9126    0.9400    1.2774
-## factor(anio_resultado)2002    1.0467     0.9554    0.8239    1.3298
-## factor(anio_resultado)2003    1.2935     0.7731    1.0040    1.6665
-## factor(anio_resultado)2004    0.9378     1.0663    0.7103    1.2381
-## factor(anio_resultado)2005    0.8212     1.2177    0.6274    1.0749
-## factor(anio_resultado)2006    1.0316     0.9694    0.7920    1.3436
-## factor(anio_resultado)2007    1.0913     0.9164    0.8414    1.4154
-## factor(anio_resultado)2008    0.8866     1.1279    0.6720    1.1699
-## factor(anio_resultado)2009    0.9132     1.0950    0.6916    1.2059
-## factor(anio_resultado)2010    1.0746     0.9306    0.8297    1.3916
-## factor(anio_resultado)2011    0.8353     1.1971    0.6456    1.0808
-## factor(anio_resultado)2012    1.0568     0.9463    0.8151    1.3700
-## factor(anio_resultado)2013    1.0251     0.9755    0.7950    1.3217
-## factor(anio_resultado)2014    0.9919     1.0082    0.7682    1.2807
-## factor(anio_resultado)2015    1.2717     0.7863    0.9893    1.6348
-## factor(anio_resultado)2016    0.9391     1.0649    0.7195    1.2256
-## factor(anio_resultado)2017    1.1901     0.8403    0.9244    1.5322
-## factor(anio_resultado)2018    1.0562     0.9468    0.8176    1.3643
-## factor(anio_resultado)2019    1.1185     0.8941    0.8681    1.4411
-## factor(anio_resultado)2020    0.9752     1.0254    0.7519    1.2648
-## factor(anio_resultado)2021    1.1361     0.8802    0.8812    1.4647
-## factor(anio_resultado)2022    1.2012     0.8325    0.9321    1.5481
-## factor(anio_resultado)2023    1.0837     0.9228    0.8389    1.3999
-## factor(anio_resultado)2024    0.9821     1.0182    0.7573    1.2737
-## factor(anio_resultado)2025    0.8656     1.1552    0.6648    1.1271
+## factor(año_resultado)2002    1.0467     0.9554    0.8239    1.3298
+## factor(año_resultado)2003    1.2935     0.7731    1.0040    1.6665
+## factor(año_resultado)2004    0.9378     1.0663    0.7103    1.2381
+## factor(año_resultado)2005    0.8212     1.2177    0.6274    1.0749
+## factor(año_resultado)2006    1.0316     0.9694    0.7920    1.3436
+## factor(año_resultado)2007    1.0913     0.9164    0.8414    1.4154
+## factor(año_resultado)2008    0.8866     1.1279    0.6720    1.1699
+## factor(año_resultado)2009    0.9132     1.0950    0.6916    1.2059
+## factor(año_resultado)2010    1.0746     0.9306    0.8297    1.3916
+## factor(año_resultado)2011    0.8353     1.1971    0.6456    1.0808
+## factor(año_resultado)2012    1.0568     0.9463    0.8151    1.3700
+## factor(año_resultado)2013    1.0251     0.9755    0.7950    1.3217
+## factor(año_resultado)2014    0.9919     1.0082    0.7682    1.2807
+## factor(año_resultado)2015    1.2717     0.7863    0.9893    1.6348
+## factor(año_resultado)2016    0.9391     1.0649    0.7195    1.2256
+## factor(año_resultado)2017    1.1901     0.8403    0.9244    1.5322
+## factor(año_resultado)2018    1.0562     0.9468    0.8176    1.3643
+## factor(año_resultado)2019    1.1185     0.8941    0.8681    1.4411
+## factor(año_resultado)2020    0.9752     1.0254    0.7519    1.2648
+## factor(año_resultado)2021    1.1361     0.8802    0.8812    1.4647
+## factor(año_resultado)2022    1.2012     0.8325    0.9321    1.5481
+## factor(año_resultado)2023    1.0837     0.9228    0.8389    1.3999
+## factor(año_resultado)2024    0.9821     1.0182    0.7573    1.2737
+## factor(año_resultado)2025    0.8656     1.1552    0.6648    1.1271
 ## sector_omcIndustrial          1.1244     0.8893    1.0509    1.2032
 ## log_valor_observado           0.9205     1.0864    0.9148    0.9262
 ## interrupcion_previa           0.7365     1.3578    0.7070    0.7672
@@ -2468,30 +2468,30 @@ summary(cox.1)</code></pre>
 ## iso_chrPAK                 1.3778577 1.1649083 1.6297350
 ## iso_chrSGP                 0.9312513 0.8502699 1.0199456
 ## iso_chrTWN                 1.0957698 0.9399897 1.2773665
-## factor(anio_resultado)2002 1.0466921 0.8238534 1.3298052
-## factor(anio_resultado)2003 1.2935044 1.0039722 1.6665339
-## factor(anio_resultado)2004 0.9377814 0.7103312 1.2380620
-## factor(anio_resultado)2005 0.8212268 0.6274392 1.0748665
-## factor(anio_resultado)2006 1.0315830 0.7920146 1.3436159
-## factor(anio_resultado)2007 1.0912831 0.8413869 1.4153997
-## factor(anio_resultado)2008 0.8866397 0.6719679 1.1698922
-## factor(anio_resultado)2009 0.9132365 0.6915880 1.2059217
-## factor(anio_resultado)2010 1.0745700 0.8297495 1.3916258
-## factor(anio_resultado)2011 0.8353267 0.6456032 1.0808043
-## factor(anio_resultado)2012 1.0567569 0.8151321 1.3700051
-## factor(anio_resultado)2013 1.0250885 0.7950419 1.3216995
-## factor(anio_resultado)2014 0.9918637 0.7681599 1.2807147
-## factor(anio_resultado)2015 1.2717386 0.9892881 1.6348313
-## factor(anio_resultado)2016 0.9390806 0.7195417 1.2256029
-## factor(anio_resultado)2017 1.1900867 0.9243889 1.5321543
-## factor(anio_resultado)2018 1.0561814 0.8176434 1.3643100
-## factor(anio_resultado)2019 1.1184860 0.8680928 1.4411028
-## factor(anio_resultado)2020 0.9752084 0.7519162 1.2648103
-## factor(anio_resultado)2021 1.1360635 0.8811784 1.4646754
-## factor(anio_resultado)2022 1.2012244 0.9321005 1.5480522
-## factor(anio_resultado)2023 1.0836614 0.8388872 1.3998570
-## factor(anio_resultado)2024 0.9820895 0.7572514 1.2736852
-## factor(anio_resultado)2025 0.8656331 0.6648480 1.1270556
+## factor(año_resultado)2002 1.0466921 0.8238534 1.3298052
+## factor(año_resultado)2003 1.2935044 1.0039722 1.6665339
+## factor(año_resultado)2004 0.9377814 0.7103312 1.2380620
+## factor(año_resultado)2005 0.8212268 0.6274392 1.0748665
+## factor(año_resultado)2006 1.0315830 0.7920146 1.3436159
+## factor(año_resultado)2007 1.0912831 0.8413869 1.4153997
+## factor(año_resultado)2008 0.8866397 0.6719679 1.1698922
+## factor(año_resultado)2009 0.9132365 0.6915880 1.2059217
+## factor(año_resultado)2010 1.0745700 0.8297495 1.3916258
+## factor(año_resultado)2011 0.8353267 0.6456032 1.0808043
+## factor(año_resultado)2012 1.0567569 0.8151321 1.3700051
+## factor(año_resultado)2013 1.0250885 0.7950419 1.3216995
+## factor(año_resultado)2014 0.9918637 0.7681599 1.2807147
+## factor(año_resultado)2015 1.2717386 0.9892881 1.6348313
+## factor(año_resultado)2016 0.9390806 0.7195417 1.2256029
+## factor(año_resultado)2017 1.1900867 0.9243889 1.5321543
+## factor(año_resultado)2018 1.0561814 0.8176434 1.3643100
+## factor(año_resultado)2019 1.1184860 0.8680928 1.4411028
+## factor(año_resultado)2020 0.9752084 0.7519162 1.2648103
+## factor(año_resultado)2021 1.1360635 0.8811784 1.4646754
+## factor(año_resultado)2022 1.2012244 0.9321005 1.5480522
+## factor(año_resultado)2023 1.0836614 0.8388872 1.3998570
+## factor(año_resultado)2024 0.9820895 0.7572514 1.2736852
+## factor(año_resultado)2025 0.8656331 0.6648480 1.1270556
 ## sector_omcIndustrial       1.1244406 1.0508587 1.2031746
 ## log_valor_observado        0.9204816 0.9147763 0.9262224
 ## interrupcion_previa        0.7364856 0.7069612 0.7672430
@@ -2618,7 +2618,7 @@ relación añade una dependencia específica para sus reingresos. Esta
 última es una ampliación explícita de la ecuación inicial del artículo.
 La estructura se revisa mediante convergencia y singularidad, sin
 suponerla válida por anticipado.</p>
-<pre class="r"><code>formula_discreta &lt;- evento_anual ~ edad_grupo + iso_chr + factor(anio_resultado) +
+<pre class="r"><code>formula_discreta &lt;- evento_anual ~ edad_grupo + iso_chr + factor(año_resultado) +
   TW:RD_resultado + CN:RD_resultado + TW:TLC_resultado + CN:TLC_resultado +
   sector_omc + log_valor_observado + interrupcion_previa + inicio_desconocido +
   (1 | capitulo) + (1 | subpartida) + (1 | id_relacion)
@@ -2631,7 +2631,7 @@ summary(mod.logit)</code></pre>
 <pre><code>## Generalized linear mixed model fit by maximum likelihood (Adaptive
 ##   Gauss-Hermite Quadrature, nAGQ = 0) [glmerMod]
 ##  Family: binomial  ( logit )
-## Formula: evento_anual ~ edad_grupo + iso_chr + factor(anio_resultado) +  
+## Formula: evento_anual ~ edad_grupo + iso_chr + factor(año_resultado) +  
 ##     TW:RD_resultado + CN:RD_resultado + TW:TLC_resultado + CN:TLC_resultado +  
 ##     sector_omc + log_valor_observado + interrupcion_previa +  
 ##     inicio_desconocido + (1 | capitulo) + (1 | subpartida) +  
@@ -2670,30 +2670,30 @@ summary(mod.logit)</code></pre>
 ## iso_chrPAK                  1.033665   0.220342   4.691 2.72e-06 ***
 ## iso_chrSGP                 -0.027102   0.084276  -0.322  0.74776    
 ## iso_chrTWN                  0.163335   0.155042   1.053  0.29212    
-## factor(anio_resultado)2002  0.215467   0.201813   1.068  0.28568    
-## factor(anio_resultado)2003  0.676334   0.211938   3.191  0.00142 ** 
-## factor(anio_resultado)2004  0.026276   0.229937   0.114  0.90902    
-## factor(anio_resultado)2005 -0.213742   0.218555  -0.978  0.32808    
-## factor(anio_resultado)2006  0.223902   0.220493   1.015  0.30989    
-## factor(anio_resultado)2007  0.313661   0.218810   1.433  0.15172    
-## factor(anio_resultado)2008  0.064387   0.223588   0.288  0.77337    
-## factor(anio_resultado)2009  0.127731   0.222203   0.575  0.56540    
-## factor(anio_resultado)2010  0.371274   0.218050   1.703  0.08862 .  
-## factor(anio_resultado)2011 -0.096786   0.210019  -0.461  0.64491    
-## factor(anio_resultado)2012  0.445807   0.211801   2.105  0.03531 *  
-## factor(anio_resultado)2013  0.327834   0.212044   1.546  0.12209    
-## factor(anio_resultado)2014  0.234324   0.213651   1.097  0.27275    
-## factor(anio_resultado)2015  0.685935   0.211716   3.240  0.00120 ** 
-## factor(anio_resultado)2016  0.148650   0.218939   0.679  0.49717    
-## factor(anio_resultado)2017  0.507223   0.213993   2.370  0.01777 *  
-## factor(anio_resultado)2018  0.330531   0.213222   1.550  0.12110    
-## factor(anio_resultado)2019  0.422821   0.212838   1.987  0.04697 *  
-## factor(anio_resultado)2020  0.199730   0.212975   0.938  0.34834    
-## factor(anio_resultado)2021  0.415797   0.213564   1.947  0.05154 .  
-## factor(anio_resultado)2022  0.501354   0.215398   2.328  0.01994 *  
-## factor(anio_resultado)2023  0.358861   0.213617   1.680  0.09297 .  
-## factor(anio_resultado)2024  0.107560   0.213488   0.504  0.61439    
-## factor(anio_resultado)2025 -0.112039   0.214148  -0.523  0.60084    
+## factor(año_resultado)2002  0.215467   0.201813   1.068  0.28568    
+## factor(año_resultado)2003  0.676334   0.211938   3.191  0.00142 ** 
+## factor(año_resultado)2004  0.026276   0.229937   0.114  0.90902    
+## factor(año_resultado)2005 -0.213742   0.218555  -0.978  0.32808    
+## factor(año_resultado)2006  0.223902   0.220493   1.015  0.30989    
+## factor(año_resultado)2007  0.313661   0.218810   1.433  0.15172    
+## factor(año_resultado)2008  0.064387   0.223588   0.288  0.77337    
+## factor(año_resultado)2009  0.127731   0.222203   0.575  0.56540    
+## factor(año_resultado)2010  0.371274   0.218050   1.703  0.08862 .  
+## factor(año_resultado)2011 -0.096786   0.210019  -0.461  0.64491    
+## factor(año_resultado)2012  0.445807   0.211801   2.105  0.03531 *  
+## factor(año_resultado)2013  0.327834   0.212044   1.546  0.12209    
+## factor(año_resultado)2014  0.234324   0.213651   1.097  0.27275    
+## factor(año_resultado)2015  0.685935   0.211716   3.240  0.00120 ** 
+## factor(año_resultado)2016  0.148650   0.218939   0.679  0.49717    
+## factor(año_resultado)2017  0.507223   0.213993   2.370  0.01777 *  
+## factor(año_resultado)2018  0.330531   0.213222   1.550  0.12110    
+## factor(año_resultado)2019  0.422821   0.212838   1.987  0.04697 *  
+## factor(año_resultado)2020  0.199730   0.212975   0.938  0.34834    
+## factor(año_resultado)2021  0.415797   0.213564   1.947  0.05154 .  
+## factor(año_resultado)2022  0.501354   0.215398   2.328  0.01994 *  
+## factor(año_resultado)2023  0.358861   0.213617   1.680  0.09297 .  
+## factor(año_resultado)2024  0.107560   0.213488   0.504  0.61439    
+## factor(año_resultado)2025 -0.112039   0.214148  -0.523  0.60084    
 ## sector_omcIndustrial        0.316435   0.104972   3.014  0.00257 ** 
 ## log_valor_observado        -0.153895   0.007344 -20.955  &lt; 2e-16 ***
 ## interrupcion_previa        -0.444249   0.045411  -9.783  &lt; 2e-16 ***
@@ -2714,7 +2714,7 @@ summary(mod.cloglog)</code></pre>
 <pre><code>## Generalized linear mixed model fit by maximum likelihood (Adaptive
 ##   Gauss-Hermite Quadrature, nAGQ = 0) [glmerMod]
 ##  Family: binomial  ( cloglog )
-## Formula: evento_anual ~ edad_grupo + iso_chr + factor(anio_resultado) +  
+## Formula: evento_anual ~ edad_grupo + iso_chr + factor(año_resultado) +  
 ##     TW:RD_resultado + CN:RD_resultado + TW:TLC_resultado + CN:TLC_resultado +  
 ##     sector_omc + log_valor_observado + interrupcion_previa +  
 ##     inicio_desconocido + (1 | capitulo) + (1 | subpartida) +  
@@ -2753,30 +2753,30 @@ summary(mod.cloglog)</code></pre>
 ## iso_chrPAK                  0.610442   0.121522   5.023 5.08e-07 ***
 ## iso_chrSGP                 -0.044763   0.052702  -0.849 0.395684    
 ## iso_chrTWN                  0.103563   0.095340   1.086 0.277371    
-## factor(anio_resultado)2002  0.032436   0.142544   0.228 0.819998    
-## factor(anio_resultado)2003  0.281555   0.149198   1.887 0.059143 .  
-## factor(anio_resultado)2004 -0.120541   0.163781  -0.736 0.461738    
-## factor(anio_resultado)2005 -0.293613   0.156775  -1.873 0.061091 .  
-## factor(anio_resultado)2006 -0.000892   0.157160  -0.006 0.995471    
-## factor(anio_resultado)2007  0.060238   0.156179   0.386 0.699719    
-## factor(anio_resultado)2008 -0.165648   0.159945  -1.036 0.300364    
-## factor(anio_resultado)2009 -0.141356   0.159033  -0.889 0.374086    
-## factor(anio_resultado)2010  0.045343   0.153794   0.295 0.768122    
-## factor(anio_resultado)2011 -0.267478   0.149871  -1.785 0.074306 .  
-## factor(anio_resultado)2012  0.021098   0.150188   0.140 0.888285    
-## factor(anio_resultado)2013 -0.022309   0.150137  -0.149 0.881878    
-## factor(anio_resultado)2014 -0.056235   0.151320  -0.372 0.710169    
-## factor(anio_resultado)2015  0.232995   0.149059   1.563 0.118027    
-## factor(anio_resultado)2016 -0.124041   0.155561  -0.797 0.425230    
-## factor(anio_resultado)2017  0.171899   0.150563   1.142 0.253576    
-## factor(anio_resultado)2018  0.014300   0.150675   0.095 0.924390    
-## factor(anio_resultado)2019  0.103466   0.150102   0.689 0.490635    
-## factor(anio_resultado)2020 -0.085220   0.150725  -0.565 0.571803    
-## factor(anio_resultado)2021  0.109762   0.150776   0.728 0.466626    
-## factor(anio_resultado)2022  0.165349   0.151854   1.089 0.276212    
-## factor(anio_resultado)2023  0.052156   0.150849   0.346 0.729533    
-## factor(anio_resultado)2024 -0.093269   0.151578  -0.615 0.538344    
-## factor(anio_resultado)2025 -0.244973   0.152761  -1.604 0.108794    
+## factor(año_resultado)2002  0.032436   0.142544   0.228 0.819998    
+## factor(año_resultado)2003  0.281555   0.149198   1.887 0.059143 .  
+## factor(año_resultado)2004 -0.120541   0.163781  -0.736 0.461738    
+## factor(año_resultado)2005 -0.293613   0.156775  -1.873 0.061091 .  
+## factor(año_resultado)2006 -0.000892   0.157160  -0.006 0.995471    
+## factor(año_resultado)2007  0.060238   0.156179   0.386 0.699719    
+## factor(año_resultado)2008 -0.165648   0.159945  -1.036 0.300364    
+## factor(año_resultado)2009 -0.141356   0.159033  -0.889 0.374086    
+## factor(año_resultado)2010  0.045343   0.153794   0.295 0.768122    
+## factor(año_resultado)2011 -0.267478   0.149871  -1.785 0.074306 .  
+## factor(año_resultado)2012  0.021098   0.150188   0.140 0.888285    
+## factor(año_resultado)2013 -0.022309   0.150137  -0.149 0.881878    
+## factor(año_resultado)2014 -0.056235   0.151320  -0.372 0.710169    
+## factor(año_resultado)2015  0.232995   0.149059   1.563 0.118027    
+## factor(año_resultado)2016 -0.124041   0.155561  -0.797 0.425230    
+## factor(año_resultado)2017  0.171899   0.150563   1.142 0.253576    
+## factor(año_resultado)2018  0.014300   0.150675   0.095 0.924390    
+## factor(año_resultado)2019  0.103466   0.150102   0.689 0.490635    
+## factor(año_resultado)2020 -0.085220   0.150725  -0.565 0.571803    
+## factor(año_resultado)2021  0.109762   0.150776   0.728 0.466626    
+## factor(año_resultado)2022  0.165349   0.151854   1.089 0.276212    
+## factor(año_resultado)2023  0.052156   0.150849   0.346 0.729533    
+## factor(año_resultado)2024 -0.093269   0.151578  -0.615 0.538344    
+## factor(año_resultado)2025 -0.244973   0.152761  -1.604 0.108794    
 ## sector_omcIndustrial        0.189411   0.061701   3.070 0.002142 ** 
 ## log_valor_observado        -0.094608   0.004411 -21.446  &lt; 2e-16 ***
 ## interrupcion_previa        -0.300604   0.027273 -11.022  &lt; 2e-16 ***

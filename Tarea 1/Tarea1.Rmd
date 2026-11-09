@@ -22,7 +22,7 @@ library(survminer)
 
 # setwd("C:/Users/Mario.alvarado/OneDrive - Ministerio de Comercio Exterior/Aprendizaje/Estadistica/2.3 Analisis de Sobrevivencia/Tarea 1")
 
-datos <- read_dta("encfec2010.dta") %>%
+datos <- read_dta("encfec2010.dta") |>
   filter(region == 8)
 
 View(datos)
@@ -35,7 +35,7 @@ table(datos$region)
 ## Ejercicio 1
 
 ```{r}
-datos <- datos %>%
+datos <- datos |>
   mutate(
     r201b = na_if(r201b, 99),
     r201c = na_if(r201c, 9999),
@@ -91,11 +91,11 @@ tabla_hazard <- data.frame(
   Tiempo = fit1$time,
   Sobrevivientes = fit1$n.risk,
   Eventos = fit1$n.event
-) %>%
+) |>
   mutate(
     delta_t = Tiempo - lag(Tiempo),
     ht = (Eventos / Sobrevivientes) / delta_t
-  ) %>%
+  ) |>
   filter(is.finite(ht))
 
 suavizam <- loess(ht ~ Tiempo, data = tabla_hazard)
@@ -113,7 +113,7 @@ plot(
 
 ```{r}
 
-datos <- datos %>%
+datos <- datos |>
   mutate(
     ednivel_cat = case_when(
       ednivel <= 10 ~ "Primaria o menos",
@@ -129,7 +129,7 @@ datos <- datos %>%
 
 ```{r}
 
-datos <- datos %>%
+datos <- datos |>
   mutate(
     religion_cat = case_when(
       r209 == 1 ~ "Católica",

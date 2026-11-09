@@ -10,14 +10,26 @@ output:
 ## Directorio de trabajo
 
 ```{r setup, message=FALSE}
-library(bit64)
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(survival)
-library(survminer)
-library(lme4)
-knitr::opts_chunk$set(message = FALSE, warning = TRUE, error = FALSE, fig.width = 9, fig.height = 5)
+pacman::p_load(
+  bit64,
+  dplyr,
+  tidyr,
+  ggplot2,
+  survival,
+  survminer,
+  broom,
+  lme4,
+  ggsurvfit,
+  glmmTMB,
+  pglm
+)
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = TRUE,
+  error = FALSE,
+  fig.width = 9,
+  fig.height = 5
+)
 
 directorio <- "C:/Users/Mario.alvarado/OneDrive - Ministerio de Comercio Exterior/Aprendizaje/Estadistica/2.3 Analisis de Sobrevivencia/Sobrevivencia/Trabajo_Final/data"
 knitr::opts_knit$set(root.dir = directorio)
@@ -27,9 +39,9 @@ knitr::opts_knit$set(root.dir = directorio)
 
 ```{r cargar-datos}
 setwd(directorio)
-load("comercio_asia.RData")
+load("Trabajo_final/data/comercio_asia.RData")
 
-# La descarga guarda el anio como integer64; bit64 permite convertirlo correctamente.
+# La descarga guarda el año como integer64; bit64 permite convertirlo correctamente.
 datos <- comercio_asia
 datos$year <- as.integer(datos$year)
 
@@ -46,29 +58,50 @@ ni siquiera para decidir si se interrumpen las exportaciones de 2025.
 
 ```{r cobertura}
 filas_descarga <- nrow(datos)
-datos <- datos %>% filter(year >= 2000, year <= 2025)
+datos <- datos |> filter(year >= 2000, year <= 2025)
 mercados <- c("CHN", "TWN", "HKG", "IND", "JPN", "KOR", "MYS", "PAK", "SGP")
 
 auditoria <- data.frame(
-  control = c("Filas descargadas", "Filas fuera de 2000-2025", "Filas del periodo",
-              "Valores cero", "Valores negativos", "Valores faltantes"),
-  cantidad = c(filas_descarga, filas_descarga - nrow(datos), nrow(datos),
-               sum(datos$valor_USD == 0), sum(datos$valor_USD < 0), sum(is.na(datos)))
+  control = c(
+    "Filas descargadas",
+    "Filas fuera de 2000-2025",
+    "Filas del periodo",
+    "Valores cero",
+    "Valores negativos",
+    "Valores faltantes"
+  ),
+  cantidad = c(
+    filas_descarga,
+    filas_descarga - nrow(datos),
+    nrow(datos),
+    sum(datos$valor_USD == 0),
+    sum(datos$valor_USD < 0),
+    sum(is.na(datos))
+  )
 )
 auditoria
 
-duplicados <- datos %>% count(year, iso_chr, subpartida) %>% filter(n > 1)
-sectores_inconsistentes <- datos %>% distinct(subpartida, sector_omc) %>%
-  count(subpartida) %>% filter(n > 1)
-nombres_inconsistentes <- datos %>% distinct(iso_chr, pais) %>%
-  count(iso_chr) %>% filter(n > 1)
-stopifnot(sum(is.na(datos)) == 0, all(is.finite(datos$valor_USD)),
-          all(datos$valor_USD >= 0), nrow(duplicados) == 0,
-          nrow(sectores_inconsistentes) == 0,
-          is.character(datos$subpartida), all(grepl("^[0-9]{6}$", datos$subpartida)),
-          setequal(unique(datos$iso_chr), mercados),
-          nrow(distinct(datos, year, iso_chr)) == 26 * 9)
-datos %>% count(iso_chr, pais, name = "registros")
+duplicados <- datos |> count(year, iso_chr, subpartida) |> filter(n > 1)
+sectores_inconsistentes <- datos |>
+  distinct(subpartida, sector_omc) |>
+  count(subpartida) |>
+  filter(n > 1)
+nombres_inconsistentes <- datos |>
+  distinct(iso_chr, pais) |>
+  count(iso_chr) |>
+  filter(n > 1)
+stopifnot(
+  sum(is.na(datos)) == 0,
+  all(is.finite(datos$valor_USD)),
+  all(datos$valor_USD >= 0),
+  nrow(duplicados) == 0,
+  nrow(sectores_inconsistentes) == 0,
+  is.character(datos$subpartida),
+  all(grepl("^[0-9]{6}$", datos$subpartida)),
+  setequal(unique(datos$iso_chr), mercados),
+  nrow(distinct(datos, year, iso_chr)) == 26 * 9
+)
+datos |> count(iso_chr, pais, name = "registros")
 nombres_inconsistentes
 ```
 
@@ -89,26 +122,41 @@ normalizan por código ISO y se conserva `pais_original` para rastrear el cambio
 <!-- Esta en discusión si agrupar las observaciones de otros países, actualmente no se agrupan. -->
 
 ```{r grupos}
-periodo_calendario <- function(anio) {
-  cut(anio, breaks = c(1999, 2007, 2010, 2025),
-      labels = c("2000-2007", "2008-2010", "2011-2025"))
+periodo_calendario <- function(año) {
+  cut(
+    año,
+    breaks = c(1999, 2007, 2010, 2025),
+    labels = c("2000-2007", "2008-2010", "2011-2025")
+  )
 }
 
-nombres_paises <- c(CHN = "China", TWN = "Taiwan", HKG = "Hong Kong",
-                    IND = "India", JPN = "Japon", KOR = "Corea del Sur",
-                    MYS = "Malasia", PAK = "Pakistan", SGP = "Singapur")
-datos <- datos %>% mutate(
-  pais_original = pais,
-  pais = unname(nombres_paises[iso_chr]),
-  grupo_destino = factor(case_when(
-    iso_chr == "CHN" ~ "China",
-    iso_chr == "TWN" ~ "Taiwan",
-    TRUE ~ "Otros paises asiaticos"
-  ), levels = c("Taiwan", "China", "Otros paises asiaticos")),
-  id_relacion = paste(iso_chr, subpartida, sep = "_"),
-  capitulo = substr(subpartida, 1, 2)
+nombres_paises <- c(
+  CHN = "China",
+  TWN = "Taiwan",
+  HKG = "Hong Kong",
+  IND = "India",
+  JPN = "Japon",
+  KOR = "Corea del Sur",
+  MYS = "Malasia",
+  PAK = "Pakistan",
+  SGP = "Singapur"
 )
-datos %>% count(grupo_destino, sector_omc)
+datos <- datos |>
+  mutate(
+    pais_original = pais,
+    pais = unname(nombres_paises[iso_chr]),
+    grupo_destino = factor(
+      case_when(
+        iso_chr == "CHN" ~ "China",
+        iso_chr == "TWN" ~ "Taiwan",
+        TRUE ~ "Otros paises asiaticos"
+      ),
+      levels = c("Taiwan", "China", "Otros paises asiaticos")
+    ),
+    id_relacion = paste(iso_chr, subpartida, sep = "_"),
+    capitulo = substr(subpartida, 1, 2)
+  )
+datos |> count(grupo_destino, sector_omc)
 ```
 
 ## 3. Completar las historias anuales
@@ -120,27 +168,47 @@ Solo se reconstruyen relaciones que tuvieron exportaciones positivas dentro
 de 2000-2025; no se inventan combinaciones producto-país nunca observadas.
 
 ```{r completar-historias}
-relaciones <- datos %>% filter(valor_USD > 0) %>%
-  distinct(id_relacion, iso_chr, pais, subpartida, sector_omc, grupo_destino, capitulo)
+relaciones <- datos |>
+  filter(valor_USD > 0) |>
+  distinct(
+    id_relacion,
+    iso_chr,
+    pais,
+    subpartida,
+    sector_omc,
+    grupo_destino,
+    capitulo
+  )
 
-panel_anual <- tidyr::crossing(id_relacion = relaciones$id_relacion, year = 2000:2025) %>%
-  left_join(relaciones, by = "id_relacion") %>%
-  left_join(datos %>% select(id_relacion, year, valor_USD) %>%
-              mutate(registro_original = TRUE), by = c("id_relacion", "year")) %>%
-  mutate(registro_original = replace_na(registro_original, FALSE),
-         valor_USD = replace_na(valor_USD, 0),
-         activo = valor_USD > 0,
-         periodo = periodo_calendario(year),
-         RD = as.integer(year >= 2008),
-         TLC = as.integer(year >= 2011),
-         TW = as.integer(iso_chr == "TWN"),
-         CN = as.integer(iso_chr == "CHN")) %>%
+panel_anual <- tidyr::crossing(
+  id_relacion = relaciones$id_relacion,
+  year = 2000:2025
+) |>
+  left_join(relaciones, by = "id_relacion") |>
+  left_join(
+    datos |>
+      select(id_relacion, year, valor_USD) |>
+      mutate(registro_original = TRUE),
+    by = c("id_relacion", "year")
+  ) |>
+  mutate(
+    registro_original = replace_na(registro_original, FALSE),
+    valor_USD = replace_na(valor_USD, 0),
+    activo = valor_USD > 0,
+    periodo = periodo_calendario(year),
+    RD = as.integer(year >= 2008),
+    TLC = as.integer(year >= 2011),
+    TW = as.integer(iso_chr == "TWN"),
+    CN = as.integer(iso_chr == "CHN")
+  ) |>
   arrange(id_relacion, year)
 
-stopifnot(nrow(panel_anual) == 26 * nrow(relaciones),
-          !anyDuplicated(panel_anual[c("id_relacion", "year")]),
-          isTRUE(all.equal(sum(panel_anual$valor_USD), sum(datos$valor_USD))))
-panel_anual %>% count(registro_original, activo)
+stopifnot(
+  nrow(panel_anual) == 26 * nrow(relaciones),
+  !anyDuplicated(panel_anual[c("id_relacion", "year")]),
+  isTRUE(all.equal(sum(panel_anual$valor_USD), sum(datos$valor_USD)))
+)
+panel_anual |> count(registro_original, activo)
 ```
 
 Los ceros anteriores al primer episodio y entre episodios describen
@@ -159,45 +227,87 @@ La duración cuenta años consecutivos positivos. Si hay exportaciones en
 año sin comercio. Un episodio activo al cierre de 2025 queda censurado.
 
 ```{r identificar-episodios}
-panel_anual <- panel_anual %>% group_by(id_relacion) %>%
-  mutate(inicio_episodio = activo & !lag(activo, default = FALSE),
-         numero_episodio = cumsum(inicio_episodio),
-         siguiente_activo = lead(activo),
-         evento_anual = as.integer(activo & year < 2025 & !siguiente_activo)) %>%
+panel_anual <- panel_anual |>
+  group_by(id_relacion) |>
+  mutate(
+    inicio_episodio = activo & !dplyr::lag(activo, default = FALSE),
+    numero_episodio = cumsum(inicio_episodio),
+    siguiente_activo = dplyr::lead(activo),
+    evento_anual = as.integer(activo & year < 2025 & !siguiente_activo)
+  ) |>
   ungroup()
 
-episodio_anio <- panel_anual %>% filter(activo) %>%
-  mutate(id_episodio = paste(id_relacion, numero_episodio, sep = "_")) %>%
-  group_by(id_episodio) %>% arrange(year, .by_group = TRUE) %>%
-  mutate(edad_episodio = row_number(),
-         inicio_observado = first(year),
-         inicio_desconocido = inicio_observado == 2000,
-         interrupcion_previa = as.integer(numero_episodio > 1),
-         valor_primero_observado = first(valor_USD),
-         valor_inicial = if_else(inicio_desconocido, NA_real_, first(valor_USD))) %>%
+episodio_año <- panel_anual |>
+  filter(activo) |>
+  mutate(id_episodio = paste(id_relacion, numero_episodio, sep = "_")) |>
+  group_by(id_episodio) |>
+  arrange(year, .by_group = TRUE) |>
+  mutate(
+    edad_episodio = row_number(),
+    inicio_observado = first(year),
+    inicio_desconocido = inicio_observado == 2000,
+    interrupcion_previa = as.integer(numero_episodio > 1),
+    valor_primero_observado = first(valor_USD),
+    valor_inicial = if_else(inicio_desconocido, NA_real_, first(valor_USD))
+  ) |>
   ungroup()
 
-episodios <- episodio_anio %>%
-  group_by(id_episodio, id_relacion, iso_chr, pais, subpartida, sector_omc,
-           grupo_destino, numero_episodio) %>%
-  summarise(inicio_observado = min(year), ultimo_anio_activo = max(year),
-            duracion = n(), evento = max(evento_anual),
-            inicio_desconocido = first(inicio_desconocido),
-            interrupcion_previa = first(interrupcion_previa),
-            valor_primero_observado = first(valor_primero_observado),
-            valor_inicial = first(valor_inicial), .groups = "drop") %>%
-  mutate(anio_interrupcion = if_else(evento == 1L, ultimo_anio_activo + 1L, NA_integer_),
-         anio_censura = if_else(evento == 0L, 2025L, NA_integer_),
-         periodo_inicio = periodo_calendario(inicio_observado),
-         periodo_interrupcion = periodo_calendario(anio_interrupcion))
+episodios <- episodio_año |>
+  group_by(
+    id_episodio,
+    id_relacion,
+    iso_chr,
+    pais,
+    subpartida,
+    sector_omc,
+    grupo_destino,
+    numero_episodio
+  ) |>
+  summarise(
+    inicio_observado = min(year),
+    ultimo_año_activo = max(year),
+    duracion = n(),
+    evento = max(evento_anual),
+    inicio_desconocido = first(inicio_desconocido),
+    interrupcion_previa = first(interrupcion_previa),
+    valor_primero_observado = first(valor_primero_observado),
+    valor_inicial = first(valor_inicial),
+    .groups = "drop"
+  ) |>
+  mutate(
+    año_interrupcion = if_else(
+      evento == 1L,
+      ultimo_año_activo + 1L,
+      NA_integer_
+    ),
+    año_censura = if_else(evento == 0L, 2025L, NA_integer_),
+    periodo_inicio = periodo_calendario(inicio_observado),
+    periodo_interrupcion = periodo_calendario(año_interrupcion)
+  )
 
-stopifnot(all(episodios$duracion == episodios$ultimo_anio_activo - episodios$inicio_observado + 1),
-          all(episodios$evento == as.integer(episodios$ultimo_anio_activo < 2025)),
-          sum(episodios$duracion) == nrow(episodio_anio),
-          sum(episodios$evento) == sum(episodio_anio$evento_anual),
-          all(is.na(episodios$valor_inicial[episodios$inicio_desconocido])))
-head(episodios %>% select(id_episodio, inicio_observado,
-  ultimo_anio_activo, duracion, evento, anio_interrupcion, inicio_desconocido), 12)
+stopifnot(
+  all(
+    episodios$duracion ==
+      episodios$ultimo_año_activo - episodios$inicio_observado + 1
+  ),
+  all(episodios$evento == as.integer(episodios$ultimo_año_activo < 2025)),
+  sum(episodios$duracion) == nrow(episodio_año),
+  sum(episodios$evento) == sum(episodio_año$evento_anual),
+  all(is.na(episodios$valor_inicial[episodios$inicio_desconocido]))
+)
+head(
+  episodios |>
+    select(
+      id_episodio,
+      inicio_observado,
+      ultimo_año_activo,
+      duracion,
+      evento,
+      año_interrupcion,
+      inicio_desconocido
+    ),
+  12
+)
 ```
 
 ## 5. Disponibilidad de información por destino
@@ -208,21 +318,39 @@ aparecer en varios destinos; por eso los productos no se suman entre grupos.
 Los reingresos no representan nuevas relaciones independientes.
 
 ```{r descriptivos-destino}
-resumen_destino <- episodios %>% group_by(grupo_destino) %>%
-  summarise(productos = n_distinct(subpartida), relaciones = n_distinct(id_relacion),
-            episodios = n(), interrupciones = sum(evento), censuras = sum(evento == 0),
-            inicios_desconocidos = sum(inicio_desconocido),
-            reingresos = sum(interrupcion_previa),
-            anios_activos = sum(duracion), .groups = "drop")
+resumen_destino <- episodios |>
+  group_by(grupo_destino) |>
+  summarise(
+    productos = n_distinct(subpartida),
+    relaciones = n_distinct(id_relacion),
+    episodios = n(),
+    interrupciones = sum(evento),
+    censuras = sum(evento == 0),
+    inicios_desconocidos = sum(inicio_desconocido),
+    reingresos = sum(interrupcion_previa),
+    años_activos = sum(duracion),
+    .groups = "drop"
+  )
 resumen_destino
 
-resumen_pais <- episodios %>% group_by(iso_chr, pais) %>%
-  summarise(relaciones = n_distinct(id_relacion), episodios = n(),
-            interrupciones = sum(evento), censuras = sum(evento == 0), .groups = "drop")
+resumen_pais <- episodios |>
+  group_by(iso_chr, pais) |>
+  summarise(
+    relaciones = n_distinct(id_relacion),
+    episodios = n(),
+    interrupciones = sum(evento),
+    censuras = sum(evento == 0),
+    .groups = "drop"
+  )
 resumen_pais
-episodios %>% group_by(grupo_destino, sector_omc) %>%
-  summarise(episodios = n(), interrupciones = sum(evento),
-            censuras = sum(evento == 0), .groups = "drop")
+episodios |>
+  group_by(grupo_destino, sector_omc) |>
+  summarise(
+    episodios = n(),
+    interrupciones = sum(evento),
+    censuras = sum(evento == 0),
+    .groups = "drop"
+  )
 ```
 
 ## 6. Periodos calendario y riesgo bruto de interrupción
@@ -234,20 +362,33 @@ estas columnas no forman una particion y los episodios presentes no deben
 sumarse entre períodos.
 
 ```{r descriptivos-periodos}
-presentes <- episodio_anio %>% group_by(grupo_destino, periodo) %>%
-  summarise(episodios_presentes = n_distinct(id_episodio),
-            anios_activos = n(), .groups = "drop")
-entradas <- episodios %>% count(grupo_destino, periodo = periodo_inicio,
-                               name = "inicios_observados")
-salidas <- episodios %>% filter(evento == 1) %>%
+presentes <- episodio_año |>
+  group_by(grupo_destino, periodo) |>
+  summarise(
+    episodios_presentes = n_distinct(id_episodio),
+    años_activos = n(),
+    .groups = "drop"
+  )
+entradas <- episodios |>
+  count(grupo_destino, periodo = periodo_inicio, name = "inicios_observados")
+salidas <- episodios |>
+  filter(evento == 1) |>
   count(grupo_destino, periodo = periodo_interrupcion, name = "interrupciones")
-censuras <- episodios %>% filter(evento == 0) %>%
-  count(grupo_destino, periodo = periodo_calendario(anio_censura), name = "censuras")
-resumen_periodos <- presentes %>%
-  left_join(entradas, by = c("grupo_destino", "periodo")) %>%
-  left_join(salidas, by = c("grupo_destino", "periodo")) %>%
-  left_join(censuras, by = c("grupo_destino", "periodo")) %>%
-  mutate(across(c(inicios_observados, interrupciones, censuras), ~replace_na(.x, 0L)))
+censuras <- episodios |>
+  filter(evento == 0) |>
+  count(
+    grupo_destino,
+    periodo = periodo_calendario(año_censura),
+    name = "censuras"
+  )
+resumen_periodos <- presentes |>
+  left_join(entradas, by = c("grupo_destino", "periodo")) |>
+  left_join(salidas, by = c("grupo_destino", "periodo")) |>
+  left_join(censuras, by = c("grupo_destino", "periodo")) |>
+  mutate(across(
+    c(inicios_observados, interrupciones, censuras),
+    ~ replace_na(.x, 0L)
+  ))
 resumen_periodos
 ```
 
@@ -259,19 +400,31 @@ siguiente, cuando se verifica continuidad o interrupción. La transición
 la censura como evidencia de continuidad durante 2026.
 
 ```{r riesgo-bruto}
-transiciones <- episodio_anio %>% filter(year < 2025) %>%
-  mutate(anio_resultado = year + 1L,
-         periodo_resultado = periodo_calendario(anio_resultado),
-         RD_resultado = as.integer(anio_resultado >= 2008),
-         TLC_resultado = as.integer(anio_resultado >= 2011))
-riesgo_bruto <- transiciones %>% group_by(grupo_destino, periodo_resultado) %>%
-  summarise(transiciones_observadas = n(), interrupciones = sum(evento_anual),
-            riesgo = mean(evento_anual), .groups = "drop")
+transiciones <- episodio_año |>
+  filter(year < 2025) |>
+  mutate(
+    año_resultado = year + 1L,
+    periodo_resultado = periodo_calendario(año_resultado),
+    RD_resultado = as.integer(año_resultado >= 2008),
+    TLC_resultado = as.integer(año_resultado >= 2011)
+  )
+riesgo_bruto <- transiciones |>
+  group_by(grupo_destino, periodo_resultado) |>
+  summarise(
+    transiciones_observadas = n(),
+    interrupciones = sum(evento_anual),
+    riesgo = mean(evento_anual),
+    .groups = "drop"
+  )
 riesgo_bruto
 ggplot(riesgo_bruto, aes(periodo_resultado, riesgo, fill = grupo_destino)) +
-  geom_col(position = "dodge") + theme_minimal() +
-  labs(x = "Periodo del resultado de la transicion", y = "Proporcion de interrupciones",
-       fill = "Destino")
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  labs(
+    x = "Periodo del resultado de la transicion",
+    y = "Proporcion de interrupciones",
+    fill = "Destino"
+  )
 ```
 
 ## 7. Tabla de vida por edad observada del episodio
@@ -288,18 +441,58 @@ interpretar la curva conjunta como duración total desde el inicio real de
 todas las relaciones, hasta resolver la consulta al profesor.
 
 ```{r tabla-vida}
-tabla_vida <- episodio_anio %>% group_by(grupo_destino, edad_episodio) %>%
-  summarise(en_riesgo = n(), eventos = sum(evento_anual),
-            censuras = sum(year == 2025), .groups = "drop") %>%
-  group_by(grupo_destino) %>% arrange(edad_episodio, .by_group = TRUE) %>%
-  mutate(riesgo_discreto = eventos / en_riesgo,
-         supervivencia = cumprod(1 - riesgo_discreto)) %>% ungroup()
+tabla_vida <- episodio_año |>
+  group_by(grupo_destino, edad_episodio) |>
+  summarise(
+    en_riesgo = n(),
+    eventos = sum(evento_anual),
+    censuras = sum(year == 2025),
+    .groups = "drop"
+  ) |>
+  group_by(grupo_destino) |>
+  arrange(edad_episodio, .by_group = TRUE) |>
+  mutate(
+    riesgo_discreto = eventos / en_riesgo,
+    supervivencia = cumprod(1 - riesgo_discreto)
+  ) |>
+  ungroup()
 tabla_vida
 ggplot(tabla_vida, aes(edad_episodio, riesgo_discreto, color = grupo_destino)) +
-  geom_line() + geom_point() + theme_minimal() +
-  labs(x = "Anios exportadores observados del episodio", y = "Riesgo discreto (d/n)",
-       color = "Destino")
+  geom_line() +
+  geom_point() +
+  theme_minimal() +
+  labs(
+    x = "años exportadores observados del episodio",
+    y = "Riesgo discreto (d/n)",
+    color = "Destino"
+  )
+
+
+km <- survfit(Surv(duracion, evento) ~ 1, episodios)
+
+tabla_vida_km <- tidy(km) |>
+  transmute(
+    edad_episodio = time,
+    en_riesgo = n.risk,
+    eventos = n.event,
+    censuras = n.censor,
+    riesgo_discreto = eventos / en_riesgo,
+    supervivencia = estimate,
+    ic_inf = conf.low,
+    ic_sup = conf.high
+  )
+
+print(tabla_vida_km, n = 25)
 ```
+
+
+::: {.callout}
+
+Basándose en los cambios en el riesgo, así como en el número de eventos para evitar inestabilidad en los modelos. Respecto al riesgo, para los episodios exportadores con una edad(duración) de 1,2,3,4 y 5 años, se observan diferencias en los riesgos y se cuenta con suficientes eventos, por tanto, se dejan individuales. Al analizar las edades entre 6 y 9, estas poseen un riesgo muy similar en torno a 0,10 y tendrían 157 eventos. Por último, se formaría un último grupo a partir de 10 hasta 25 añoss, sobretodo porque el número de eventos en estas edades son muy bajos para realizar separaciones.
+
+:::
+
+
 
 ## 8. Kaplan-Meier y comparaciones exploratorias
 
@@ -323,22 +516,45 @@ km_destino <- survfit(Surv(duracion, evento) ~ grupo_destino, data = episodios)
 summary(km_destino)
 km_cohorte <- survfit(Surv(duracion, evento) ~ periodo_inicio, data = episodios)
 summary(km_cohorte)
-ggsurvplot(km_destino, data = episodios, conf.int = FALSE, pval = FALSE,
-           xlab = "Años exportadores observados", ylab = "Supervivencia estimada")
-ggsurvplot(km_cohorte, data = episodios, conf.int = FALSE, pval = FALSE,
-           xlab = "Años exportadores observados", ylab = "Supervivencia estimada")
+ggsurvplot(
+  km_destino,
+  data = episodios,
+  conf.int = FALSE,
+  pval = FALSE,
+  xlab = "Años exportadores observados",
+  ylab = "Supervivencia estimada"
+)
+ggsurvplot(
+  km_cohorte,
+  data = episodios,
+  conf.int = FALSE,
+  pval = FALSE,
+  xlab = "Años exportadores observados",
+  ylab = "Supervivencia estimada"
+)
 
-logrank_nominal <- survdiff(Surv(duracion, evento) ~ grupo_destino, data = episodios)
-data.frame(chi_cuadrado = logrank_nominal$chisq,
+logrank_nominal <- survdiff(
+  Surv(duracion, evento) ~ grupo_destino,
+  data = episodios
+)
+
+data.frame(
+  chi_cuadrado = logrank_nominal$chisq,
   gl = length(logrank_nominal$n) - 1,
-  p_nominal = pchisq(logrank_nominal$chisq, df = length(logrank_nominal$n) - 1,
-                    lower.tail = FALSE))
+  p_nominal = pchisq(
+    logrank_nominal$chisq,
+    df = length(logrank_nominal$n) - 1,
+    lower.tail = FALSE
+  )
+)
 
 # Verificar que la tabla didactica reproduce las estimaciones de survfit.
 for (g in levels(episodios$grupo_destino)) {
-  manual <- tabla_vida %>% filter(grupo_destino == g)
-  ajuste <- survfit(Surv(duracion, evento) ~ 1,
-                    data = episodios %>% filter(grupo_destino == g))
+  manual <- tabla_vida |> filter(grupo_destino == g)
+  ajuste <- survfit(
+    Surv(duracion, evento) ~ 1,
+    data = episodios |> filter(grupo_destino == g)
+  )
   esperado <- summary(ajuste, times = manual$edad_episodio, extend = TRUE)$surv
   stopifnot(isTRUE(all.equal(manual$supervivencia, as.numeric(esperado))))
 }
@@ -364,7 +580,7 @@ relaciones, por lo que comparar solo números absolutos resulta insuficiente.
 
 - `datos`: registros originales del período, con identificadores y grupos.
 - `panel_anual`: historia completa, incluidos los años sin exportaciones.
-- `episodio_anio`: una fila por año activo de cada episodio.
+- `episodio_año`: una fila por año activo de cada episodio.
 - `episodios`: una fila por episodio, con duración, evento y censura.
 - `transiciones`: seguimiento anual con resultado conocido hasta 2025.
 
@@ -411,35 +627,49 @@ de cada transición. Son características del calendario, no información futura
 del desempeño exportador.
 
 ```{r base-modelos}
-base_modelos <- transiciones %>% mutate(
-  tiempo_inicial = edad_episodio - 1,
-  tiempo_final = edad_episodio,
-  log_valor_observado = log(valor_primero_observado),
-  inicio_desconocido = as.integer(inicio_desconocido),
-  iso_chr = relevel(factor(iso_chr), ref = "HKG"),
-  sector_omc = factor(sector_omc),
-  capitulo = factor(capitulo),
-  subpartida = factor(subpartida),
-  id_relacion = factor(id_relacion),
-  # Agrupación explícita de la cola, siguiendo el criterio didáctico del lab.
-  edad_grupo = cut(edad_episodio, breaks = c(0, 1, 2, 3, 5, 10, Inf),
-                  labels = c("1", "2", "3", "4-5", "6-10", "11+"))
-)
-base_modelos %>% count(edad_grupo, evento_anual)
+base_modelos <- transiciones |>
+  mutate(
+    tiempo_inicial = edad_episodio - 1,
+    tiempo_final = edad_episodio,
+    log_valor_observado = log(valor_primero_observado),
+    inicio_desconocido = as.integer(inicio_desconocido),
+    iso_chr = relevel(factor(iso_chr), ref = "HKG"),
+    sector_omc = factor(sector_omc),
+    capitulo = factor(capitulo),
+    subpartida = factor(subpartida),
+    id_relacion = factor(id_relacion),
+    # Agrupación explícita de la cola, siguiendo el criterio didáctico del lab.
+    edad_grupo = cut(
+      edad_episodio,
+      breaks = c(0, 1, 2, 3, 5, 10, Inf),
+      labels = c("1", "2", "3", "4-5", "6-10", "11+")
+    )
+  )
+base_modelos |> count(edad_grupo, evento_anual)
 
-base_param <- base_modelos %>% group_by(id_episodio) %>%
-  summarise(tiempo_modelo = max(tiempo_final), evento = max(evento_anual),
-            grupo_destino = first(grupo_destino), sector_omc = first(sector_omc),
-            log_valor_observado = first(log_valor_observado),
-            inicio_desconocido = first(inicio_desconocido),
-            interrupcion_previa = first(interrupcion_previa),
-            id_relacion = first(id_relacion), .groups = "drop")
-data.frame(episodios_descriptivos = nrow(episodios),
-           episodios_con_seguimiento = nrow(base_param),
-           sin_transicion_observable = nrow(episodios) - nrow(base_param))
-stopifnot(sum(base_param$evento) == sum(episodios$evento),
-          sum(base_param$tiempo_modelo) == nrow(base_modelos),
-          all(base_modelos$tiempo_final > base_modelos$tiempo_inicial))
+base_param <- base_modelos |>
+  group_by(id_episodio) |>
+  summarise(
+    tiempo_modelo = max(tiempo_final),
+    evento = max(evento_anual),
+    grupo_destino = first(grupo_destino),
+    sector_omc = first(sector_omc),
+    log_valor_observado = first(log_valor_observado),
+    inicio_desconocido = first(inicio_desconocido),
+    interrupcion_previa = first(interrupcion_previa),
+    id_relacion = first(id_relacion),
+    .groups = "drop"
+  )
+data.frame(
+  episodios_descriptivos = nrow(episodios),
+  episodios_con_seguimiento = nrow(base_param),
+  sin_transicion_observable = nrow(episodios) - nrow(base_param)
+)
+stopifnot(
+  sum(base_param$evento) == sum(episodios$evento),
+  sum(base_param$tiempo_modelo) == nrow(base_modelos),
+  all(base_modelos$tiempo_final > base_modelos$tiempo_inicial)
+)
 ```
 
 ## 13. Regresión de Cox con contexto variable en el tiempo
@@ -456,16 +686,27 @@ Las cuatro interacciones comparan cambios en China y Taiwán con los siete
 mercados restantes, manteniendo diferencias fijas entre países.
 
 ```{r cox}
-sv2 <- Surv(time = base_modelos$tiempo_inicial,
-            time2 = base_modelos$tiempo_final,
-            event = base_modelos$evento_anual)
-cox.1 <- coxph(sv2 ~ iso_chr + factor(anio_resultado) +
-                TW:RD_resultado + CN:RD_resultado +
-                TW:TLC_resultado + CN:TLC_resultado +
-                sector_omc + log_valor_observado + interrupcion_previa +
-                inicio_desconocido,
-              data = base_modelos, ties = "efron", cluster = id_relacion,
-              x = TRUE)
+sv2 <- Surv(
+  time = base_modelos$tiempo_inicial,
+  time2 = base_modelos$tiempo_final,
+  event = base_modelos$evento_anual
+)
+cox.1 <- coxph(
+  sv2 ~ iso_chr +
+    factor(año_resultado) +
+    TW:RD_resultado +
+    CN:RD_resultado +
+    TW:TLC_resultado +
+    CN:TLC_resultado +
+    sector_omc +
+    log_valor_observado +
+    interrupcion_previa +
+    inicio_desconocido,
+  data = base_modelos,
+  ties = "efron",
+  cluster = id_relacion,
+  x = TRUE
+)
 summary(cox.1)
 exp(cbind(HR = coef(cox.1), confint(cox.1)))
 ```
@@ -482,8 +723,13 @@ if (inherits(prop.haz, "cox.zph")) {
   abline(h = coef(cox.1)["log_valor_observado"], col = "red", lty = 2)
 } else {
   cat("No se pudo calcular cox.zph:", conditionMessage(prop.haz), "\n")
-  cat("El diagnóstico queda pendiente; esto no demuestra riesgos proporcionales.\n")
+  cat(
+    "El diagnóstico queda pendiente; esto no demuestra riesgos proporcionales.\n"
+  )
 }
+cox.sin_año <- update(cox.1, . ~ . - factor(año_resultado))
+cox.zph(cox.sin_año, terms = FALSE) # si corre, el problema era ese término
+cox.zph(cox.1)
 ```
 
 La prueba y el gráfico exploran la constancia de los efectos en el reloj de
@@ -491,54 +737,7 @@ duración. Son diagnósticos, no una corrección automática. La prueba ordinari
 de Schoenfeld requiere cautela con episodios dependientes. Si muestra evidencia
 de variación, este Cox no se presenta como modelo definitivo sin revisarlo.
 
-## 14. Modelos paramétricos: comparación didáctica
 
-Como en el laboratorio, se crea un objeto `Surv` y se ajustan distribuciones
-con `survreg`. Se comparan cuatro familias de tiempos positivos vistas en clase:
-exponencial, Weibull, lognormal y loglogística. No se agregan normal y logística
-porque permiten tiempos negativos. Todas usan exactamente las mismas filas.
-
-Estos modelos emplean características fijas del episodio. No se introduce el
-contexto del final del episodio como predictor, porque usaría información
-posterior. Tampoco se pretende que estos ajustes reproduzcan los efectos
-institucionales variables del Cox o del modelo discreto. Constituyen una
-comparación de formas de duración, con inferencia robusta por relación.
-
-```{r parametricos}
-sv1 <- Surv(time = base_param$tiempo_modelo, event = base_param$evento)
-formula_param <- sv1 ~ grupo_destino + sector_omc + log_valor_observado +
-  interrupcion_previa + inicio_desconocido
-
-weib.1 <- survreg(formula_param, data = base_param, dist = "weibull",
-                  cluster = id_relacion, robust = TRUE)
-exp.1 <- survreg(formula_param, data = base_param, dist = "exponential",
-                 cluster = id_relacion, robust = TRUE)
-logn.1 <- survreg(formula_param, data = base_param, dist = "lognormal",
-                  cluster = id_relacion, robust = TRUE)
-loglog.1 <- survreg(formula_param, data = base_param, dist = "loglogistic",
-                    cluster = id_relacion, robust = TRUE)
-
-tabla.param <- data.frame(
-  modelo = c("Weibull", "Exponencial", "Lognormal", "Loglogística"),
-  AIC = c(AIC(weib.1), AIC(exp.1), AIC(logn.1), AIC(loglog.1)),
-  BIC = c(BIC(weib.1), BIC(exp.1), BIC(logn.1), BIC(loglog.1)))
-tabla.param <- tabla.param[order(tabla.param$AIC), ]
-tabla.param
-modelos_param <- list(Weibull = weib.1, Exponencial = exp.1,
-                     Lognormal = logn.1, "Loglogística" = loglog.1)
-mejor_param <- modelos_param[[tabla.param$modelo[1]]]
-summary(mejor_param)
-exp(cbind(razon_tiempos = coef(mejor_param), confint(mejor_param)))
-plot(predict(mejor_param, type = "lp"), residuals(mejor_param, type = "deviance"),
-     xlab = "Predictor lineal", ylab = "Residuos de deviancia")
-abline(h = 0, col = "red")
-```
-
-En estas parametrizaciones AFT, `exp(beta)` es una razón de tiempos, no un HR:
-mayor que uno indica mayor duración, manteniendo las otras variables constantes.
-El menor AIC identifica el mejor ajuste relativo entre las familias comparadas,
-no demuestra que la distribución sea correcta. La corrección robusta cambia
-la incertidumbre, no convierte la verosimilitud en un modelo de dependencia.
 
 ## 15. Modelos binomiales mixtos en tiempo discreto
 
@@ -557,23 +756,39 @@ ampliación explícita de la ecuación inicial del artículo. La estructura se
 revisa mediante convergencia y singularidad, sin suponerla válida por anticipado.
 
 ```{r discreto-logit}
-formula_discreta <- evento_anual ~ edad_grupo + iso_chr + factor(anio_resultado) +
-  TW:RD_resultado + CN:RD_resultado + TW:TLC_resultado + CN:TLC_resultado +
-  sector_omc + log_valor_observado + interrupcion_previa + inicio_desconocido +
-  (1 | capitulo) + (1 | subpartida) + (1 | id_relacion)
+formula_discreta <- evento_anual ~ edad_grupo +
+  iso_chr +
+  factor(año_resultado) +
+  TW:RD_resultado +
+  CN:RD_resultado +
+  TW:TLC_resultado +
+  CN:TLC_resultado +
+  sector_omc +
+  log_valor_observado +
+  interrupcion_previa +
+  inicio_desconocido +
+  (1 | capitulo) +
+  (1 | subpartida) +
+  (1 | id_relacion)
 
-mod.logit <- glmer(formula_discreta, data = base_modelos,
-                   family = binomial(link = "logit"), nAGQ = 0,
-                   control = glmerControl(optimizer = "bobyqa",
-                                          optCtrl = list(maxfun = 200000)))
+mod.logit <- glmer(
+  formula_discreta,
+  data = base_modelos,
+  family = binomial(link = "logit"),
+  nAGQ = 0,
+  control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
 summary(mod.logit)
 ```
 
 ```{r discreto-cloglog}
-mod.cloglog <- glmer(formula_discreta, data = base_modelos,
-                     family = binomial(link = "cloglog"), nAGQ = 0,
-                     control = glmerControl(optimizer = "bobyqa",
-                                            optCtrl = list(maxfun = 200000)))
+mod.cloglog <- glmer(
+  formula_discreta,
+  data = base_modelos,
+  family = binomial(link = "cloglog"),
+  nAGQ = 0,
+  control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 200000))
+)
 summary(mod.cloglog)
 ```
 
@@ -586,10 +801,15 @@ en ambos casos se trata de razones de razones, no de un efecto simple de país.
 diagnosticos <- data.frame(
   modelo = c("Logit", "Cloglog"),
   singular = c(isSingular(mod.logit), isSingular(mod.cloglog)),
-  codigo_optimizador = c(mod.logit@optinfo$conv$opt, mod.cloglog@optinfo$conv$opt),
+  codigo_optimizador = c(
+    mod.logit@optinfo$conv$opt,
+    mod.cloglog@optinfo$conv$opt
+  ),
   mensajes_convergencia = c(
     paste(mod.logit@optinfo$conv$lme4$messages, collapse = "; "),
-    paste(mod.cloglog@optinfo$conv$lme4$messages, collapse = "; ")))
+    paste(mod.cloglog@optinfo$conv$lme4$messages, collapse = "; ")
+  )
+)
 diagnosticos
 VarCorr(mod.logit)
 VarCorr(mod.cloglog)
@@ -600,12 +820,18 @@ comparacion_discreta
 # Intervalos Wald, para no ejecutar perfiles costosos al tejer el documento.
 beta_logit <- fixef(mod.logit)
 se_logit <- sqrt(diag(vcov(mod.logit)))
-OR_logit <- exp(cbind(OR = beta_logit, inferior = beta_logit - 1.96 * se_logit,
-                     superior = beta_logit + 1.96 * se_logit))
+OR_logit <- exp(cbind(
+  OR = beta_logit,
+  inferior = beta_logit - 1.96 * se_logit,
+  superior = beta_logit + 1.96 * se_logit
+))
 beta_cloglog <- fixef(mod.cloglog)
 se_cloglog <- sqrt(diag(vcov(mod.cloglog)))
-HR_cloglog <- exp(cbind(HR = beta_cloglog, inferior = beta_cloglog - 1.96 * se_cloglog,
-                       superior = beta_cloglog + 1.96 * se_cloglog))
+HR_cloglog <- exp(cbind(
+  HR = beta_cloglog,
+  inferior = beta_cloglog - 1.96 * se_cloglog,
+  superior = beta_cloglog + 1.96 * se_cloglog
+))
 OR_logit[grepl(":", rownames(OR_logit)), , drop = FALSE]
 HR_cloglog[grepl(":", rownames(HR_cloglog)), , drop = FALSE]
 ```
