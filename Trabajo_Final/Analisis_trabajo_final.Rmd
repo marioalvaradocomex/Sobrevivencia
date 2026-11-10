@@ -790,16 +790,13 @@ la incertidumbre, no convierte la verosimilitud en un modelo de dependencia.
 
 ## 15. Modelos binomiales mixtos en tiempo discreto
 
-# TODO: Discutir con Gustavo la inclusión y especificación de los efectos
-# fijos de año y destino, y confirmar que coincide con la metodología acordada.
 
 Como en el laboratorio, la respuesta es binaria por año y la duración se
 introduce como factor. Se agrupa la cola en 4–5, 6–10 y 11 o más años, conservando
 separados los tres primeros; esta especificación requiere análisis de sensibilidad.
 No debe confundirse la edad del episodio con el año calendario.
 
-Se incluyen interceptos aleatorios de capítulo, subpartida y relación
-producto–destino. Cada subpartida pertenece a un capítulo; el efecto de relación
+Se incluyen interceptos aleatorios subpartida. Cada subpartida pertenece a un capítulo; el efecto de relación
 añade una dependencia específica para sus reingresos. Esta última es una
 ampliación explícita de la ecuación inicial del artículo. La estructura se
 revisa mediante convergencia y singularidad, sin suponerla válida por anticipado.
