@@ -1,0 +1,699 @@
+---
+title: "Supervivencia de las exportaciones de Costa Rica a Asia"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: show
+---
+
+# 1. Paquetes y datos
+
+```{r}
+#| label: paquetes
+pacman::p_load(
+  bit64, # year viene como integer64; sin bit64 as.integer() lo convierte mal
+  dplyr,
+  tidyr,
+  purrr,
+  ggplot2,
+  survival,
+  survminer,
+  broom,
+  broom.mixed,
+  lme4
+)
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = TRUE,
+  fig.width = 9,
+  fig.height = 5
+)
+```
+
+```{r}
+#| label: cargar-datos
+
+load("data/comercio_asia.RData")
+
+datos <- comercio_asia
+datos$year <- as.integer(datos$year)
+str(datos)
+```
+
+# 2. Cobertura y controles iniciales
+
+```{r}
+#| label: auditoria
+filas_descarga <- nrow(datos)
+datos <- datos |> filter(year >= 2000, year <= 2025)
+mercados <- c("CHN", "TWN", "HKG", "IND", "JPN", "KOR", "MYS", "PAK", "SGP")
+
+data.frame(
+  control = c(
+    "Filas descargadas",
+    "Filas fuera de 2000-2025",
+    "Filas del periodo",
+    "Valores cero",
+    "Valores negativos",
+    "Valores faltantes"
+  ),
+  cantidad = c(
+    filas_descarga,
+    filas_descarga - nrow(datos),
+    nrow(datos),
+    sum(datos$valor_USD == 0),
+    sum(datos$valor_USD < 0),
+    sum(is.na(datos))
+  )
+)
+
+stopifnot(
+  sum(is.na(datos)) == 0,
+  all(is.finite(datos$valor_USD)),
+  all(datos$valor_USD > 0),
+  nrow(datos |> count(year, iso_chr, subpartida) |> filter(n > 1)) == 0,
+  nrow(
+    datos |>
+      distinct(subpartida, sector_omc) |>
+      count(subpartida) |>
+      filter(n > 1)
+  ) ==
+    0,
+  all(grepl("^[0-9]{6}$", datos$subpartida)),
+  setequal(unique(datos$iso_chr), mercados),
+  nrow(distinct(datos, year, iso_chr)) == 26 * 9
+)
+
+# Los nombres de país vienen escritos de varias formas (KOR y TWN); se uniformizan
+datos |> distinct(iso_chr, pais) |> count(iso_chr) |> filter(n > 1)
+```
+
+```{r}
+#| label: registros-por-año
+# Revisión de la cobertura reciente: 2025 tiene muchos más registros que los años previos
+datos |>
+  filter(year >= 2021) |>
+  count(iso_chr, year) |>
+  pivot_wider(names_from = year, values_from = n)
+```
+
+```{r}
+#| label: distribucion-montos
+# Distribución de los montos anuales por relación (USD)
+quantile(datos$valor_USD, c(0.05, 0.10, 0.25, 0.50, 0.75, 0.90))
+mean(datos$valor_USD < 1000)
+```
+
+# 3. Grupos de comparación
+
+```{r}
+#| label: grupos
+periodo_calendario <- function(año) {
+  cut(
+    año,
+    breaks = c(1999, 2007, 2010, 2025),
+    labels = c("2000-2007", "2008-2010", "2011-2025")
+  )
+}
+
+nombres_paises <- c(
+  CHN = "China",
+  TWN = "Taiwan",
+  HKG = "Hong Kong",
+  IND = "India",
+  JPN = "Japon",
+  KOR = "Corea del Sur",
+  MYS = "Malasia",
+  PAK = "Pakistan",
+  SGP = "Singapur"
+)
+
+datos <- datos |>
+  mutate(
+    pais = unname(nombres_paises[iso_chr]),
+    grupo_destino = factor(
+      case_when(
+        iso_chr == "CHN" ~ "China",
+        iso_chr == "TWN" ~ "Taiwan",
+        TRUE ~ "Otros paises asiaticos"
+      ),
+      levels = c("Taiwan", "China", "Otros paises asiaticos")
+    ),
+    id_relacion = paste(iso_chr, subpartida, sep = "_")
+  )
+
+datos |> count(grupo_destino, sector_omc)
+```
+
+# 4. Construcción de episodios
+
+Solo se completan las relaciones producto-país con al menos un año de exportaciones positivas en 2000-2025. Los años sin exportaciones antes del primer episodio o entre episodios son inactividad y no cuentan como duración.
+
+Un episodio empieza cada vez que se pasa de inactividad a actividad. Un reingreso reinicia la duración y conserva el identificador producto-país. La interrupción se fecha en el primer año sin exportaciones. Un episodio activo en 2025 queda censurado. Los episodios activos en 2000 tienen inicio desconocido (censura por la izquierda).
+
+La construcción se escribe como función para poder repetirla en los análisis de sensibilidad (umbral mínimo de monto, pausas de un año, año de corte y fecha del TLC).
+
+```{r}
+#| label: funcion-episodios
+construir_episodios <- function(
+  datos,
+  umbral = 0,
+  rellenar_pausa_1 = FALSE,
+  año_fin = 2025,
+  año_tlc = 2011
+) {
+  datos <- datos |> filter(year <= año_fin)
+
+  relaciones <- datos |>
+    filter(valor_USD > 0, valor_USD >= umbral) |>
+    distinct(id_relacion, iso_chr, pais, subpartida, sector_omc, grupo_destino)
+
+  panel <- tidyr::crossing(
+    id_relacion = relaciones$id_relacion,
+    year = 2000:año_fin
+  ) |>
+    left_join(relaciones, by = "id_relacion") |>
+    left_join(
+      datos |> select(id_relacion, year, valor_USD),
+      by = c("id_relacion", "year")
+    ) |>
+    mutate(
+      valor_USD = replace_na(valor_USD, 0),
+      activo = valor_USD > 0 & valor_USD >= umbral
+    ) |>
+    arrange(id_relacion, year)
+
+  # Sensibilidad: un único año sin exportaciones entre dos años activos se trata como continuidad
+  if (rellenar_pausa_1) {
+    panel <- panel |>
+      group_by(id_relacion) |>
+      mutate(
+        activo = activo |
+          (dplyr::lag(activo, default = FALSE) &
+            dplyr::lead(activo, default = FALSE))
+      ) |>
+      ungroup()
+  }
+
+  panel <- panel |>
+    group_by(id_relacion) |>
+    mutate(
+      inicio_episodio = activo & !dplyr::lag(activo, default = FALSE),
+      numero_episodio = cumsum(inicio_episodio),
+      evento_anual = as.integer(
+        activo & year < año_fin & !dplyr::lead(activo, default = FALSE)
+      )
+    ) |>
+    ungroup()
+
+  episodio_año <- panel |>
+    filter(activo) |>
+    mutate(id_episodio = paste(id_relacion, numero_episodio, sep = "_")) |>
+    group_by(id_episodio) |>
+    arrange(year, .by_group = TRUE) |>
+    mutate(
+      edad_episodio = row_number(),
+      inicio_observado = first(year),
+      inicio_desconocido = as.integer(inicio_observado == 2000),
+      interrupcion_previa = as.integer(numero_episodio > 1),
+      valor_inicial = first(valor_USD)
+    ) |>
+    ungroup()
+
+  episodios <- episodio_año |>
+    group_by(
+      id_episodio,
+      id_relacion,
+      iso_chr,
+      pais,
+      subpartida,
+      sector_omc,
+      grupo_destino,
+      numero_episodio
+    ) |>
+    summarise(
+      inicio_observado = min(year),
+      ultimo_año_activo = max(year),
+      duracion = n(),
+      evento = max(evento_anual),
+      inicio_desconocido = first(inicio_desconocido),
+      interrupcion_previa = first(interrupcion_previa),
+      valor_inicial = first(valor_inicial),
+      .groups = "drop"
+    )
+
+  # Una fila por transición anual con resultado conocido (t -> t+1).
+  # La transición 2025-2026 no se observa, así que el último año activo
+  # de un episodio censurado no aporta fila.
+  base_modelos <- episodio_año |>
+    filter(year < año_fin) |>
+    mutate(
+      año_resultado = year + 1L,
+      periodo_resultado = periodo_calendario(año_resultado),
+      RD_resultado = as.integer(año_resultado >= 2008),
+      TLC_resultado = as.integer(año_resultado >= año_tlc),
+      TW = as.integer(iso_chr == "TWN"),
+      CN = as.integer(iso_chr == "CHN"),
+      tiempo_inicial = edad_episodio - 1L,
+      tiempo_final = edad_episodio,
+      log_valor_inicial = log(valor_inicial),
+      edad_grupo = cut(
+        edad_episodio,
+        breaks = c(0, 1, 2, 3, 4, 5, 9, Inf),
+        labels = c("1", "2", "3", "4", "5", "6-9", "10+")
+      ),
+      iso_chr = relevel(factor(iso_chr), ref = "HKG"),
+      sector_omc = factor(sector_omc),
+      subpartida = factor(subpartida),
+      id_relacion = factor(id_relacion)
+    )
+
+  # Una fila por episodio con el mismo reloj de los modelos:
+  # eventos en la edad de la interrupción, censuras en la última transición observada
+  base_param <- base_modelos |>
+    group_by(id_episodio) |>
+    summarise(
+      tiempo_modelo = max(tiempo_final),
+      evento = max(evento_anual),
+      grupo_destino = first(grupo_destino),
+      sector_omc = first(sector_omc),
+      log_valor_inicial = first(log_valor_inicial),
+      interrupcion_previa = first(interrupcion_previa),
+      inicio_desconocido = first(inicio_desconocido),
+      subpartida = first(subpartida),
+      .groups = "drop"
+    )
+
+  list(
+    panel = panel,
+    episodio_año = episodio_año,
+    episodios = episodios,
+    base_modelos = base_modelos,
+    base_param = base_param
+  )
+}
+```
+
+```{r}
+#| label: construir
+b <- construir_episodios(datos)
+episodios <- b$episodios
+b$panel |> count(activo)
+```
+
+# 5. Disponibilidad de información
+
+```{r}
+#| label: resumen-destino
+episodios |>
+  group_by(grupo_destino) |>
+  summarise(
+    productos = n_distinct(subpartida),
+    relaciones = n_distinct(id_relacion),
+    episodios = n(),
+    interrupciones = sum(evento),
+    censuras = sum(evento == 0),
+    inicios_desconocidos = sum(inicio_desconocido),
+    reingresos = sum(interrupcion_previa),
+    años_activos = sum(duracion),
+    .groups = "drop"
+  )
+```
+
+```{r}
+#| label: resumen-pais
+episodios |>
+  group_by(iso_chr, pais) |>
+  summarise(
+    relaciones = n_distinct(id_relacion),
+    episodios = n(),
+    interrupciones = sum(evento),
+    censuras = sum(evento == 0),
+    inicios_2025 = sum(inicio_observado == 2025),
+    .groups = "drop"
+  )
+```
+
+# 6. Riesgo bruto de interrupción por período
+
+Numerador: interrupciones. Denominador: transiciones anuales con resultado conocido. Cada transición se asigna al año del resultado. Se usan todos los episodios, incluidos los de inicio desconocido, porque aquí interesa describir la base completa.
+
+```{r}
+#| label: riesgo-bruto
+riesgo_bruto <- b$base_modelos |>
+  group_by(grupo_destino, periodo_resultado) |>
+  summarise(
+    transiciones = n(),
+    interrupciones = sum(evento_anual),
+    riesgo = mean(evento_anual),
+    .groups = "drop"
+  )
+riesgo_bruto
+
+ggplot(riesgo_bruto, aes(periodo_resultado, riesgo, fill = grupo_destino)) +
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  labs(
+    x = "Período del resultado de la transición",
+    y = "Proporción de interrupciones",
+    fill = "Destino"
+  )
+```
+
+# 7. Muestra de análisis
+
+Los 277 episodios activos en 2000 tienen la edad mal medida: su "edad 1" es el año 2000, no su primer año exportando. Un indicador no corrige eso, porque solo desplaza el intercepto y deja la edad contaminada. Por eso se excluyen de la tabla de vida y de los modelos principales, y se reincorporan en un análisis de sensibilidad.
+
+```{r}
+#| label: muestra
+base_modelos <- b$base_modelos |> filter(inicio_desconocido == 0)
+base_param <- b$base_param |> filter(inicio_desconocido == 0)
+
+data.frame(
+  episodios_totales = nrow(episodios),
+  inicio_desconocido = sum(episodios$inicio_desconocido),
+  iniciados_en_2025_sin_transicion = sum(episodios$inicio_observado == 2025),
+  episodios_analizados = nrow(base_param),
+  transiciones = nrow(base_modelos),
+  interrupciones = sum(base_modelos$evento_anual)
+)
+```
+
+# 8. Tabla de vida
+
+El reloj es el número de años exportadores. Una interrupción en la edad *t* significa que el episodio exportó *t* años consecutivos y no exportó en el siguiente. Los episodios censurados se censuran en su última transición observada, no en 2025: no se sabe si sobrevivieron la transición 2025-2026.
+
+```{r}
+#| label: tabla-vida
+km <- survfit(Surv(tiempo_modelo, evento) ~ 1, data = base_param)
+
+tabla_vida <- tidy(km) |>
+  transmute(
+    edad = time,
+    en_riesgo = n.risk,
+    eventos = n.event,
+    censuras = n.censor,
+    riesgo = eventos / en_riesgo,
+    supervivencia = estimate,
+    ic_inf = conf.low,
+    ic_sup = conf.high
+  )
+print(tabla_vida, n = 30)
+```
+
+```{r}
+#| label: tabla-vida-agrupada
+# Riesgo por grupo de edad: justifica la agrupación usada en el modelo discreto
+base_modelos |>
+  group_by(edad_grupo) |>
+  summarise(
+    en_riesgo = n(),
+    eventos = sum(evento_anual),
+    riesgo = mean(evento_anual),
+    .groups = "drop"
+  )
+```
+
+```{r}
+#| label: km-general
+ggsurvplot(
+  km,
+  data = base_param,
+  conf.int = TRUE,
+  legend = "none",
+  xlab = "Años exportadores",
+  ylab = "Supervivencia estimada"
+)
+```
+
+# 9. Kaplan-Meier por destino
+
+Las bandas de confianza y el log-rank suponen episodios independientes. No lo son, por los reingresos de la misma relación y por los productos compartidos entre destinos. Por eso el log-rank se reporta como referencia nominal y la dependencia se trata en los modelos.
+
+```{r}
+#| label: km-destino
+km_destino <- survfit(
+  Surv(tiempo_modelo, evento) ~ grupo_destino,
+  data = base_param
+)
+summary(km_destino, times = c(1, 2, 3, 5, 10))
+summary(km_destino)$table[, c("records", "events", "median")]
+```
+
+```{r}
+#| label: km-destino-grafico
+ggsurvplot(
+  km_destino,
+  data = base_param,
+  conf.int = FALSE,
+  pval = FALSE,
+  xlab = "Años exportadores",
+  ylab = "Supervivencia estimada",
+  legend.labs = levels(base_param$grupo_destino)
+)
+```
+
+```{r}
+#| label: logrank
+logrank <- survdiff(
+  Surv(tiempo_modelo, evento) ~ grupo_destino,
+  data = base_param
+)
+data.frame(
+  chi_cuadrado = logrank$chisq,
+  gl = length(logrank$n) - 1,
+  p_valor = pchisq(logrank$chisq, length(logrank$n) - 1, lower.tail = FALSE)
+)
+
+pairwise_survdiff(
+  Surv(tiempo_modelo, evento) ~ grupo_destino,
+  data = base_param,
+  p.adjust.method = "holm"
+)
+```
+
+# 10. Regresión de Cox con covariables que cambian en el tiempo
+
+Formato de intervalos (`tiempo_inicial`, `tiempo_final`]: una fila por año de cada episodio. Los efectos fijos de año absorben todo lo que es común a los 9 mercados en cada año, incluidos los efectos principales de RD y TLC. Las interacciones comparan el cambio en Taiwán y en China con el de los otros 7 mercados (diferencias en diferencias). Los errores estándar son robustos, agrupados por subpartida: así se reconoce que una subpartida aparece en varios destinos y con varios episodios.
+
+```{r}
+#| label: cox
+sv2 <- Surv(
+  base_modelos$tiempo_inicial,
+  base_modelos$tiempo_final,
+  base_modelos$evento_anual
+)
+
+cox.1 <- coxph(
+  sv2 ~ iso_chr +
+    factor(año_resultado) +
+    TW:RD_resultado +
+    CN:RD_resultado +
+    TW:TLC_resultado +
+    CN:TLC_resultado +
+    sector_omc +
+    log_valor_inicial +
+    interrupcion_previa,
+  data = base_modelos,
+  ties = "efron",
+  cluster = subpartida
+)
+
+cox_hr <- tidy(cox.1, exponentiate = TRUE, conf.int = TRUE) |>
+  filter(!grepl("año_resultado", term)) |>
+  select(
+    term,
+    HR = estimate,
+    ee_robusto = robust.se,
+    p.value,
+    conf.low,
+    conf.high
+  )
+cox_hr
+```
+
+Con los 23 efectos fijos de año, `cox.zph()` no se puede calcular: la matriz de información queda singular. Para revisar el supuesto de riesgos proporcionales se reemplazan los efectos de año por los efectos principales de RD y TLC. Las interacciones de interés prácticamente no cambian, así que el diagnóstico es representativo del modelo reportado.
+
+```{r}
+#| label: cox-ph
+cox.ph <- update(
+  cox.1,
+  . ~ . - factor(año_resultado) + RD_resultado + TLC_resultado
+)
+
+# Las interacciones casi no cambian respecto a cox.1
+round(
+  cbind(
+    con_efectos_año = exp(coef(cox.1))[grep(":", names(coef(cox.1)))],
+    con_RD_TLC = exp(coef(cox.ph))[grep(":", names(coef(cox.ph)))]
+  ),
+  3
+)
+
+cox.zph(cox.ph, terms = TRUE)
+```
+
+# 11. Modelos binomiales mixtos en tiempo discreto
+
+Una fila por episodio-año en riesgo; la respuesta es 1 si el episodio se interrumpe en la transición. La edad del episodio entra como factor (1, 2, 3, 4, 5, 6-9 y 10+) y hace de riesgo base. Los efectos fijos de año controlan el contexto común del calendario, igual que en el Cox.
+
+Se incluye como interceptos aleatorios (fragilidades):
+
+- **subpartida:** heterogeneidad no observada del producto, compartida entre los 9 destinos.
+
+
+
+```{r}
+#| label: glmer
+formula_discreto <- evento_anual ~ edad_grupo +
+  iso_chr +
+  factor(año_resultado) +
+  TW:RD_resultado +
+  CN:RD_resultado +
+  TW:TLC_resultado +
+  CN:TLC_resultado +
+  sector_omc +
+  log_valor_inicial +
+  interrupcion_previa +
+  (1 | subpartida)
+
+control_glmer <- glmerControl(
+  optimizer = "bobyqa",
+  optCtrl = list(maxfun = 2e5)
+)
+
+mod.logit <- glmer(
+  formula_discreto,
+  data = base_modelos,
+  family = binomial(link = "logit"),
+  control = control_glmer,
+  nAGQ = 0
+)
+mod.cloglog <- glmer(
+  formula_discreto,
+  data = base_modelos,
+  family = binomial(link = "cloglog"),
+  control = control_glmer,
+  nAGQ = 0
+)
+
+modelos <- list(Logit = mod.logit, Cloglog = mod.cloglog)
+```
+
+```{r}
+#| label: glmer-diagnosticos
+imap(
+  modelos,
+  ~ tibble(
+    modelo = .y,
+    singular = isSingular(.x),
+    sd_subpartida = attr(VarCorr(.x)$subpartida, "stddev"),
+    sd_relacion = attr(VarCorr(.x)$id_relacion, "stddev"),
+    AIC = AIC(.x),
+    BIC = BIC(.x)
+  )
+) |>
+  list_rbind()
+```
+
+```{r}
+#| label: glmer-efectos
+efectos <- imap(
+  modelos,
+  ~ tidy(
+    .x,
+    effects = "fixed",
+    exponentiate = TRUE,
+    conf.int = TRUE,
+    conf.method = "Wald"
+  ) |>
+    mutate(modelo = .y)
+) |>
+  list_rbind() |>
+  filter(!grepl("año_resultado|Intercept", term))
+
+efectos |>
+  mutate(ic = sprintf("%.2f (%.2f-%.2f)", estimate, conf.low, conf.high)) |>
+  select(term, modelo, ic) |>
+  pivot_wider(names_from = modelo, values_from = ic) |>
+  print(n = Inf)
+```
+
+```{r}
+#| label: efecto-combinado
+# Cambio acumulado posterior a 2011 frente a antes de 2008, relativo a los otros mercados
+efecto_combinado <- function(mod, terminos) {
+  b <- fixef(mod)
+  V <- as.matrix(vcov(mod))
+  L <- setNames(numeric(length(b)), names(b))
+  L[terminos] <- 1
+  est <- sum(L * b)
+  ee <- sqrt(drop(t(L) %*% V %*% L))
+  c(
+    efecto = exp(est),
+    inf = exp(est - 1.96 * ee),
+    sup = exp(est + 1.96 * ee),
+    p = 2 * pnorm(-abs(est / ee))
+  )
+}
+
+round(
+  rbind(
+    TW_logit = efecto_combinado(
+      mod.logit,
+      c("TW:RD_resultado", "TW:TLC_resultado")
+    ),
+    TW_cloglog = efecto_combinado(
+      mod.cloglog,
+      c("TW:RD_resultado", "TW:TLC_resultado")
+    ),
+    CN_logit = efecto_combinado(
+      mod.logit,
+      c("RD_resultado:CN", "CN:TLC_resultado")
+    ),
+    CN_cloglog = efecto_combinado(
+      mod.cloglog,
+      c("RD_resultado:CN", "CN:TLC_resultado")
+    )
+  ),
+  3
+)
+```
+
+
+
+# Anexo. Modelos paramétricos de duración
+
+Comparación de formas de la duración con características fijas del episodio. Estos modelos no incluyen RD ni TLC, porque esas variables cambian dentro del episodio; por lo tanto no responden la pregunta principal. Los tiempos son enteros y con muchos empates, así que las distribuciones continuas son solo una aproximación.
+
+```{r}
+#| label: parametricos
+sv1 <- Surv(base_param$tiempo_modelo, base_param$evento)
+formula_param <- sv1 ~ grupo_destino +
+  sector_omc +
+  log_valor_inicial +
+  interrupcion_previa
+
+modelos_param <- map(
+  c(
+    Weibull = "weibull",
+    Exponencial = "exponential",
+    Lognormal = "lognormal",
+    Loglogistica = "loglogistic"
+  ),
+  ~ survreg(formula_param, data = base_param, dist = .x, cluster = subpartida)
+)
+
+tabla_param <- tibble(
+  modelo = names(modelos_param),
+  AIC = map_dbl(modelos_param, AIC),
+  BIC = map_dbl(modelos_param, BIC)
+) |>
+  arrange(AIC)
+tabla_param
+
+mejor_param <- modelos_param[[tabla_param$modelo[1]]]
+summary(mejor_param)
+exp(cbind(razon_tiempos = coef(mejor_param), confint(mejor_param)))
+```

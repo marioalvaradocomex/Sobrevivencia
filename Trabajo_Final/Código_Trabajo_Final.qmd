@@ -1,6 +1,8 @@
 ---
 title: "Untitled"
-format: html
+format: 
+   html:
+     embed-resources: true
 ---
 
 # Paquetes y base de datos
@@ -35,8 +37,8 @@ knitr::opts_chunk$set(
 
 ## Datos
 
-```{r cargar-datos}
-load("Trabajo_final/data/comercio_asia.RData")
+```{r}
+load("data/comercio_asia.RData")
 
 datos <- comercio_asia
 datos$year <- as.integer(datos$year)
@@ -380,7 +382,7 @@ ggplot(riesgo_bruto, aes(periodo_resultado, riesgo, fill = grupo_destino)) +
 
 
 ```{r}
-km <- survfit(Surv(duracion, evento) ~ 1, episodios)
+km <- survfit(Surv(tiempo_modelo, evento) ~ 1, base_param)
 
 tabla_vida_km <- tidy(km) |>
   transmute(
@@ -624,7 +626,7 @@ No es el HR simple de China frente a Taiwán. La interpretación es asociativa.
 ```{r}
 cox.sin_año <- update(cox.1, . ~ . - factor(año_resultado))
 cox.zph(cox.sin_año, terms = FALSE)
-cox.zph(cox.1)
+#cox.zph(cox.1)
 
 ```
 
@@ -774,9 +776,6 @@ diagnosticos <- imap_dfr(
   modelos,
   ~ tibble(
     modelo = .y,
-    singular = check_singularity(.x),
-    codigo_opt = .x@optinfo$conv$opt,
-    mensajes = paste(.x@optinfo$conv$lme4$messages, collapse = "; "),
     sd_subpartida = attr(VarCorr(.x)$subpartida, "stddev"),
     AIC = AIC(.x),
     BIC = BIC(.x)
