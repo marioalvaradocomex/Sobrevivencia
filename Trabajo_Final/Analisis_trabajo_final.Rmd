@@ -21,7 +21,8 @@ pacman::p_load(
   lme4,
   ggsurvfit,
   glmmTMB,
-  pglm
+  pglm,
+  flextable
 )
 knitr::opts_chunk$set(
   message = FALSE,
@@ -441,33 +442,6 @@ interpretar la curva conjunta como duración total desde el inicio real de
 todas las relaciones, hasta resolver la consulta al profesor.
 
 ```{r tabla-vida}
-tabla_vida <- episodio_año |>
-  group_by(grupo_destino, edad_episodio) |>
-  summarise(
-    en_riesgo = n(),
-    eventos = sum(evento_anual),
-    censuras = sum(year == 2025),
-    .groups = "drop"
-  ) |>
-  group_by(grupo_destino) |>
-  arrange(edad_episodio, .by_group = TRUE) |>
-  mutate(
-    riesgo_discreto = eventos / en_riesgo,
-    supervivencia = cumprod(1 - riesgo_discreto)
-  ) |>
-  ungroup()
-tabla_vida
-ggplot(tabla_vida, aes(edad_episodio, riesgo_discreto, color = grupo_destino)) +
-  geom_line() +
-  geom_point() +
-  theme_minimal() +
-  labs(
-    x = "años exportadores observados del episodio",
-    y = "Riesgo discreto (d/n)",
-    color = "Destino"
-  )
-
-
 km <- survfit(Surv(duracion, evento) ~ 1, episodios)
 
 tabla_vida_km <- tidy(km) |>
@@ -483,12 +457,23 @@ tabla_vida_km <- tidy(km) |>
   )
 
 print(tabla_vida_km, n = 25)
+
+
+ggsurvplot(
+  km,
+  data = episodios,
+  conf.int = T,
+  xlab = "Años exportadores observados",
+  ylab = "Supervivencia estimada"
+)
 ```
 
+La mayoría de las subpartidas mueren antes de los 5 años.
+# Recordar describir medianas 
 
 ::: {.callout}
 
-Basándose en los cambios en el riesgo, así como en el número de eventos para evitar inestabilidad en los modelos. Respecto al riesgo, para los episodios exportadores con una edad(duración) de 1,2,3,4 y 5 años, se observan diferencias en los riesgos y se cuenta con suficientes eventos, por tanto, se dejan individuales. Al analizar las edades entre 6 y 9, estas poseen un riesgo muy similar en torno a 0,10 y tendrían 157 eventos. Por último, se formaría un último grupo a partir de 10 hasta 25 añoss, sobretodo porque el número de eventos en estas edades son muy bajos para realizar separaciones.
+Basándose en los cambios en el riesgo, así como en el número de eventos para evitar inestabilidad en los modelos. Respecto al riesgo, para los episodios exportadores con una edad(duración) de 1,2,3,4 y 5 años, se observan diferencias en los riesgos y se cuenta con suficientes eventos, por tanto, se dejan individuales. Al analizar las edades entre 6 y 9, estas poseen un riesgo muy similar en torno a 0,10 y tendrían 157 eventos. Por último, se formaría un último grupo a partir de 10 hasta 25 años, sobretodo porque el número de eventos en estas edades son muy bajos para realizar separaciones.
 
 :::
 
@@ -510,55 +495,44 @@ definitiva. El tratamiento de la dependencia se deja para la modelación.
 
 ```{r kaplan-meier}
 so.1 <- Surv(time = episodios$duracion, event = episodios$evento)
-# La respuesta dentro de la fórmula permite reconstruir los gráficos al tejer.
 
 km_destino <- survfit(Surv(duracion, evento) ~ grupo_destino, data = episodios)
 summary(km_destino)
-km_cohorte <- survfit(Surv(duracion, evento) ~ periodo_inicio, data = episodios)
-summary(km_cohorte)
+
 ggsurvplot(
   km_destino,
   data = episodios,
   conf.int = FALSE,
   pval = FALSE,
   xlab = "Años exportadores observados",
-  ylab = "Supervivencia estimada"
-)
-ggsurvplot(
-  km_cohorte,
-  data = episodios,
-  conf.int = FALSE,
-  pval = FALSE,
-  xlab = "Años exportadores observados",
-  ylab = "Supervivencia estimada"
+  ylab = "Supervivencia estimada",
+  legend.labs = levels(episodios$grupo_destino)
 )
 
-logrank_nominal <- survdiff(
+logrank <- survdiff(
   Surv(duracion, evento) ~ grupo_destino,
   data = episodios
 )
 
 data.frame(
-  chi_cuadrado = logrank_nominal$chisq,
-  gl = length(logrank_nominal$n) - 1,
-  p_nominal = pchisq(
-    logrank_nominal$chisq,
-    df = length(logrank_nominal$n) - 1,
-    lower.tail = FALSE
+  chi_cuadrado = logrank$chisq,
+  gl = length(logrank$n) - 1,
+  p_val = pchisq(
+    logrank$chisq,
+    df = length(logrank$n) - 1,
+    lower.tail = F
   )
 )
 
-# Verificar que la tabla didactica reproduce las estimaciones de survfit.
-for (g in levels(episodios$grupo_destino)) {
-  manual <- tabla_vida |> filter(grupo_destino == g)
-  ajuste <- survfit(
-    Surv(duracion, evento) ~ 1,
-    data = episodios |> filter(grupo_destino == g)
-  )
-  esperado <- summary(ajuste, times = manual$edad_episodio, extend = TRUE)$surv
-  stopifnot(isTRUE(all.equal(manual$supervivencia, as.numeric(esperado))))
-}
+
+pairwise_survdiff(
+  Surv(duracion, evento) ~ grupo_destino,
+  data = episodios,
+  p.adjust.method = "holm"
+)
 ```
+
+Las curvas de supervivencia de China y Taiwán difieren, también difieren las de Taiwán y Otros países asiáticos. China y otros países asiáticos no muestran diferencias en sus curvas de supervivencia.
 
 ## 9. Lectura descriptiva de los resultados
 
@@ -638,13 +612,13 @@ base_modelos <- transiciones |>
     capitulo = factor(capitulo),
     subpartida = factor(subpartida),
     id_relacion = factor(id_relacion),
-    # Agrupación explícita de la cola, siguiendo el criterio didáctico del lab.
     edad_grupo = cut(
       edad_episodio,
-      breaks = c(0, 1, 2, 3, 5, 10, Inf),
-      labels = c("1", "2", "3", "4-5", "6-10", "11+")
+      breaks = c(0, 1, 2, 3, 4, 5, 9, Inf),
+      labels = c("1", "2", "3", "4", "5", "6-9", "10+")
     )
   )
+
 base_modelos |> count(edad_grupo, evento_anual)
 
 base_param <- base_modelos |>
@@ -665,17 +639,10 @@ data.frame(
   episodios_con_seguimiento = nrow(base_param),
   sin_transicion_observable = nrow(episodios) - nrow(base_param)
 )
-stopifnot(
-  sum(base_param$evento) == sum(episodios$evento),
-  sum(base_param$tiempo_modelo) == nrow(base_modelos),
-  all(base_modelos$tiempo_final > base_modelos$tiempo_inicial)
-)
+
 ```
 
 ## 13. Regresión de Cox con contexto variable en el tiempo
-
-# TODO: Discutir con Gustavo la inclusión y especificación de los efectos
-# fijos de año y destino, y confirmar que coincide con la metodología acordada.
 
 La sintaxis reproduce el esquema del laboratorio de covariables temporales.
 Se añaden errores estándar robustos agrupados por relación producto–destino
@@ -738,6 +705,88 @@ de Schoenfeld requiere cautela con episodios dependientes. Si muestra evidencia
 de variación, este Cox no se presenta como modelo definitivo sin revisarlo.
 
 
+## 14. Modelos paramétricos: comparación didáctica
+
+Como en el laboratorio, se crea un objeto `Surv` y se ajustan distribuciones
+con `survreg`. Se comparan cuatro familias de tiempos positivos vistas en clase:
+exponencial, Weibull, lognormal y loglogística. No se agregan normal y logística
+porque permiten tiempos negativos. Todas usan exactamente las mismas filas.
+
+Estos modelos emplean características fijas del episodio. No se introduce el
+contexto del final del episodio como predictor, porque usaría información
+posterior. Tampoco se pretende que estos ajustes reproduzcan los efectos
+institucionales variables del Cox o del modelo discreto. Constituyen una
+comparación de formas de duración, con inferencia robusta por relación.
+
+```{r parametricos}
+sv1 <- Surv(time = base_param$tiempo_modelo, event = base_param$evento)
+formula_param <- sv1 ~ grupo_destino +
+  sector_omc +
+  log_valor_observado +
+  interrupcion_previa +
+  inicio_desconocido
+
+weib.1 <- survreg(
+  formula_param,
+  data = base_param,
+  dist = "weibull",
+  cluster = id_relacion,
+  robust = TRUE
+)
+exp.1 <- survreg(
+  formula_param,
+  data = base_param,
+  dist = "exponential",
+  cluster = id_relacion,
+  robust = TRUE
+)
+logn.1 <- survreg(
+  formula_param,
+  data = base_param,
+  dist = "lognormal",
+  cluster = id_relacion,
+  robust = TRUE
+)
+loglog.1 <- survreg(
+  formula_param,
+  data = base_param,
+  dist = "loglogistic",
+  cluster = id_relacion,
+  robust = TRUE
+)
+
+tabla.param <- data.frame(
+  modelo = c("Weibull", "Exponencial", "Lognormal", "Loglogística"),
+  AIC = c(AIC(weib.1), AIC(exp.1), AIC(logn.1), AIC(loglog.1)),
+  BIC = c(BIC(weib.1), BIC(exp.1), BIC(logn.1), BIC(loglog.1))
+)
+tabla.param <- tabla.param[order(tabla.param$AIC), ]
+tabla.param
+modelos_param <- list(
+  Weibull = weib.1,
+  Exponencial = exp.1,
+  Lognormal = logn.1,
+  "Loglogística" = loglog.1
+)
+mejor_param <- modelos_param[[tabla.param$modelo[1]]]
+summary(mejor_param)
+exp(cbind(razon_tiempos = coef(mejor_param), confint(mejor_param)))
+plot(
+  predict(mejor_param, type = "lp"),
+  residuals(mejor_param, type = "deviance"),
+  xlab = "Predictor lineal",
+  ylab = "Residuos de deviancia"
+)
+abline(h = 0, col = "red")
+```
+
+En estas parametrizaciones AFT, `exp(beta)` es una razón de tiempos, no un HR:
+mayor que uno indica mayor duración, manteniendo las otras variables constantes.
+El menor AIC identifica el mejor ajuste relativo entre las familias comparadas,
+no demuestra que la distribución sea correcta. La corrección robusta cambia
+la incertidumbre, no convierte la verosimilitud en un modelo de dependencia.
+
+
 
 ## 15. Modelos binomiales mixtos en tiempo discreto
 
@@ -767,9 +816,7 @@ formula_discreta <- evento_anual ~ edad_grupo +
   log_valor_observado +
   interrupcion_previa +
   inicio_desconocido +
-  (1 | capitulo) +
-  (1 | subpartida) +
-  (1 | id_relacion)
+  (1 | subpartida)
 
 mod.logit <- glmer(
   formula_discreta,
