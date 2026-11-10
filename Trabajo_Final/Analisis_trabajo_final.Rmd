@@ -22,7 +22,10 @@ pacman::p_load(
   ggsurvfit,
   glmmTMB,
   pglm,
-  flextable
+  flextable,
+  purrr,
+  broom.mixed,
+  performance
 )
 knitr::opts_chunk$set(
   message = FALSE,
@@ -671,7 +674,7 @@ cox.1 <- coxph(
     inicio_desconocido,
   data = base_modelos,
   ties = "efron",
-  cluster = id_relacion,
+  cluster = subpartida,
   x = TRUE
 )
 summary(cox.1)
@@ -730,28 +733,28 @@ weib.1 <- survreg(
   formula_param,
   data = base_param,
   dist = "weibull",
-  cluster = id_relacion,
+  cluster = subpartida,
   robust = TRUE
 )
 exp.1 <- survreg(
   formula_param,
   data = base_param,
   dist = "exponential",
-  cluster = id_relacion,
+  cluster = subpartida,
   robust = TRUE
 )
 logn.1 <- survreg(
   formula_param,
   data = base_param,
   dist = "lognormal",
-  cluster = id_relacion,
+  cluster = subpartida,
   robust = TRUE
 )
 loglog.1 <- survreg(
   formula_param,
   data = base_param,
   dist = "loglogistic",
-  cluster = id_relacion,
+  cluster = subpartida,
   robust = TRUE
 )
 
@@ -802,7 +805,7 @@ ampliación explícita de la ecuación inicial del artículo. La estructura se
 revisa mediante convergencia y singularidad, sin suponerla válida por anticipado.
 
 ```{r discreto-logit}
-formula_discreta <- evento_anual ~ edad_grupo +
+formula <- evento_anual ~ edad_grupo +
   iso_chr +
   factor(año_resultado) +
   TW:RD_resultado +
@@ -816,7 +819,7 @@ formula_discreta <- evento_anual ~ edad_grupo +
   (1 | subpartida)
 
 mod.logit <- glmer(
-  formula_discreta,
+  formula,
   data = base_modelos,
   family = binomial(link = "logit"),
   nAGQ = 0,
@@ -827,7 +830,7 @@ summary(mod.logit)
 
 ```{r discreto-cloglog}
 mod.cloglog <- glmer(
-  formula_discreta,
+  formula,
   data = base_modelos,
   family = binomial(link = "cloglog"),
   nAGQ = 0,
@@ -842,42 +845,78 @@ de riesgos proporcionales agrupados en intervalos anuales. Para las interaccione
 en ambos casos se trata de razones de razones, no de un efecto simple de país.
 
 ```{r comparar-discretos}
-diagnosticos <- data.frame(
-  modelo = c("Logit", "Cloglog"),
-  singular = c(isSingular(mod.logit), isSingular(mod.cloglog)),
-  codigo_optimizador = c(
-    mod.logit@optinfo$conv$opt,
-    mod.cloglog@optinfo$conv$opt
-  ),
-  mensajes_convergencia = c(
-    paste(mod.logit@optinfo$conv$lme4$messages, collapse = "; "),
-    paste(mod.cloglog@optinfo$conv$lme4$messages, collapse = "; ")
+modelos <- list(Logit = mod.logit, Cloglog = mod.cloglog)
+
+# Diagnósticos + varianza de la fragilidad + criterios de información
+diagnosticos <- imap_dfr(
+  modelos,
+  ~ tibble(
+    modelo = .y,
+    singular = check_singularity(.x),
+    codigo_opt = .x@optinfo$conv$opt,
+    mensajes = paste(.x@optinfo$conv$lme4$messages, collapse = "; "),
+    sd_subpartida = attr(VarCorr(.x)$subpartida, "stddev"),
+    AIC = AIC(.x),
+    BIC = BIC(.x)
   )
 )
 diagnosticos
-VarCorr(mod.logit)
-VarCorr(mod.cloglog)
-comparacion_discreta <- AIC(mod.logit, mod.cloglog)
-comparacion_discreta$BIC <- c(BIC(mod.logit), BIC(mod.cloglog))
-comparacion_discreta
 
-# Intervalos Wald, para no ejecutar perfiles costosos al tejer el documento.
-beta_logit <- fixef(mod.logit)
-se_logit <- sqrt(diag(vcov(mod.logit)))
-OR_logit <- exp(cbind(
-  OR = beta_logit,
-  inferior = beta_logit - 1.96 * se_logit,
-  superior = beta_logit + 1.96 * se_logit
-))
-beta_cloglog <- fixef(mod.cloglog)
-se_cloglog <- sqrt(diag(vcov(mod.cloglog)))
-HR_cloglog <- exp(cbind(
-  HR = beta_cloglog,
-  inferior = beta_cloglog - 1.96 * se_cloglog,
-  superior = beta_cloglog + 1.96 * se_cloglog
-))
-OR_logit[grepl(":", rownames(OR_logit)), , drop = FALSE]
-HR_cloglog[grepl(":", rownames(HR_cloglog)), , drop = FALSE]
+# IC de Wald para OR y HR
+efectos <- imap_dfr(
+  modelos,
+  ~ tidy(
+    .x,
+    effects = "fixed",
+    exponentiate = TRUE,
+    conf.int = TRUE,
+    conf.method = "Wald"
+  ) |>
+    mutate(modelo = .y)
+)
+
+# Cuadro OR y HR de las interacciones
+efectos |>
+  filter(grepl(":", term)) |>
+  mutate(ic = sprintf("%.2f (%.2f–%.2f)", estimate, conf.low, conf.high)) |>
+  select(term, modelo, ic) |>
+  pivot_wider(names_from = modelo, values_from = ic)
+
+
+efecto_combinado <- function(mod, terminos) {
+  b <- fixef(mod)
+  V <- vcov(mod)
+  L <- setNames(numeric(length(b)), names(b))
+  L[terminos] <- 1
+  est <- sum(L * b)
+  ee <- sqrt(drop(t(L) %*% V %*% L))
+  c(
+    efecto = exp(est),
+    inf = exp(est - 1.96 * ee),
+    sup = exp(est + 1.96 * ee)
+  )
+}
+round(
+  rbind(
+    TW_logit = efecto_combinado(
+      mod.logit,
+      c("TW:RD_resultado", "TW:TLC_resultado")
+    ),
+    TW_cloglog = efecto_combinado(
+      mod.cloglog,
+      c("TW:RD_resultado", "TW:TLC_resultado")
+    ),
+    CN_logit = efecto_combinado(
+      mod.logit,
+      c("RD_resultado:CN", "CN:TLC_resultado")
+    ),
+    CN_cloglog = efecto_combinado(
+      mod.cloglog,
+      c("RD_resultado:CN", "CN:TLC_resultado")
+    )
+  ),
+  3
+)
 ```
 
 Un ajuste singular o con advertencias de convergencia no se declara ganador
@@ -886,11 +925,7 @@ la estructura, no ocultar la advertencia. AIC y BIC se comparan aquí solo entre
 los dos enlaces con la misma respuesta, muestra y estructura; no se mezclan
 con el AIC de Cox ni con el de los modelos de duración continua.
 
-En esta primera ejecución se usa `nAGQ = 0`, una aproximación más rápida y
-menos precisa que `nAGQ = 1` (Laplace). Los coeficientes, intervalos y criterios
-de información son preliminares: antes de la entrega se debe repetir con
-`nAGQ = 1` y comprobar su estabilidad. Véase la
-[documentación de glmer](https://lme4.github.io/lme4/reference/glmer.html).
+
 
 ## 16. Cierre de esta etapa
 
@@ -900,7 +935,3 @@ aportan comparaciones pedagógicas, no una competencia directa entre sus AIC.
 La elección final exige revisar los diagnósticos, la sensibilidad a los grupos
 de duración y los inicios desconocidos. No se afirma que el cambio diplomático
 o el TLC causaron las asociaciones estimadas.
-
-```{r reproducibilidad}
-sessionInfo()
-```
