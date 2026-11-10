@@ -570,6 +570,7 @@ base_param <- base_modelos |>
     inicio_desconocido = first(inicio_desconocido),
     interrupcion_previa = first(interrupcion_previa),
     id_relacion = first(id_relacion),
+    subpartida = first(subpartida),
     .groups = "drop"
   )
 data.frame(
@@ -642,7 +643,7 @@ posterior. Tampoco se pretende que estos ajustes reproduzcan los efectos
 institucionales variables del Cox o del modelo discreto. Constituyen una
 comparación de formas de duración, con inferencia robusta por relación.
 
-```{r parametricos}
+```{r}
 sv1 <- Surv(time = base_param$tiempo_modelo, event = base_param$evento)
 formula_param <- sv1 ~ grupo_destino +
   sector_omc +
