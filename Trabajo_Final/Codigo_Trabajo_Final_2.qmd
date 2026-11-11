@@ -363,7 +363,7 @@ ggplot(riesgo_bruto, aes(periodo_resultado, riesgo, fill = grupo_destino)) +
 
 # 7. Muestra de análisis
 
-Los 277 episodios activos en 2000 tienen la edad mal medida: su "edad 1" es el año 2000, no su primer año exportando. Un indicador no corrige eso, porque solo desplaza el intercepto y deja la edad contaminada. Por eso se excluyen de la tabla de vida y de los modelos principales, y se reincorporan en un análisis de sensibilidad.
+Los 277 episodios activos en 2000 tienen la edad mal medida: su "edad 1" es el año 2000, no su primer año exportando. Un indicador no corrige eso, porque solo desplaza el intercepto y deja la edad contaminada. Por eso se excluyen de la tabla de vida y de los modelos principales.
 
 ```{r}
 #| label: muestra
