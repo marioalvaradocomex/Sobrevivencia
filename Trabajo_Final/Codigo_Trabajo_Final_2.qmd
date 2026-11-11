@@ -400,6 +400,7 @@ tabla_vida <- tidy(km) |>
     ic_sup = conf.high
   )
 print(tabla_vida, n = 30)
+
 ```
 
 ```{r}
